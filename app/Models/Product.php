@@ -2,18 +2,18 @@
 
 class ProductModel
 {
-    private $pdo;
+    private PDO $pdo;
 
-    public function __construct($pdo)
+    public function __construct(PDO $pdo)
     {
         $this->pdo = $pdo;
     }
 
     // Get all products
-    public function getAllProducts()
+    public function getAllProducts(): array
     {
         try {
-            $sql = "SELECT * FROM products";
+            $sql = "SELECT * FROM products ORDER BY id DESC";
 
             $stmt = $this->pdo->prepare($sql);
             $stmt->execute();
@@ -21,20 +21,16 @@ class ProductModel
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         } catch (PDOException $e) {
-            error_log($e->getMessage());
-            return false;
+            error_log("Get All Products Error: " . $e->getMessage());
+            throw $e;
         }
     }
 
     // Get one product by ID
-    public function getProductById($id)
+    public function getProductById(int $id): ?array
     {
         try {
-            $sql = "SELECT id, category_id, brand_id, name, description,
-                       ingredients, warnings, price, discount_percent,
-                       stock, sizes, weight, image
-                FROM products
-                WHERE id = :id";
+            $sql = "SELECT * FROM products WHERE id = :id";
 
             $stmt = $this->pdo->prepare($sql);
             $stmt->execute(['id' => $id]);
@@ -48,34 +44,34 @@ class ProductModel
             return $product;
 
         } catch (PDOException $e) {
-            error_log($e->getMessage());
-            return false;
+            error_log("Get Product Error: " . $e->getMessage());
+            throw $e;
         }
     }
 
     // Create product
     public function createProduct(
-        $category_id,
-        $name,
-        $description,
-        $ingredients,
-        $warnings,
-        $price,
-        $discount_percent,
-        $stock,
-        $sizes,
-        $weight,
-        $image,
-        $brand_id = null
-    ) {
+        int $category_id,
+        string $name,
+        ?string $description,
+        ?string $ingredients,
+        ?string $warnings,
+        float $price,
+        float $discount_percent,
+        int $stock,
+        array|string|null $sizes,
+        ?float $weight,
+        array|string|null $image,
+        ?int $brand_id = null
+    ): int {
         try {
-            if (is_array($sizes)) {
-                $sizes = json_encode($sizes);
-            }
+            $sizes = is_array($sizes)
+                ? json_encode($sizes, JSON_THROW_ON_ERROR)
+                : $sizes;
 
-            if (is_array($image)) {
-                $image = json_encode($image);
-            }
+            $image = is_array($image)
+                ? json_encode($image, JSON_THROW_ON_ERROR)
+                : $image;
 
             $sql = "INSERT INTO products (
                         category_id,
@@ -119,41 +115,45 @@ class ProductModel
                 'stock' => $stock,
                 'sizes' => $sizes,
                 'weight' => $weight,
-                'image' => $image
+                'image' => $image,
+
             ]);
 
-            return $this->pdo->lastInsertId();
+            return (int) $this->pdo->lastInsertId();
 
-        } catch (PDOException $e) {
-            error_log($e->getMessage());
-            return false;
+        } catch (PDOException | JsonException $e) {
+            error_log("Create Product Error:" . $e->getMessage());
+            throw $e;
         }
     }
 
     // Update product
     public function updateProduct(
-        $id,
-        $name,
-        $description,
-        $ingredients,
-        $warnings,
-        $price,
-        $discount_percent,
-        $stock,
-        $sizes,
-        $weight,
-        $image
-    ) {
+        int $id,
+        int $category_id,
+        ?int $brand_id,
+        string $name,
+        ?string $description,
+        ?string $ingredients,
+        ?string $warnings,
+        float $price,
+        float $discount_percent,
+        int $stock,
+        array|string|null $sizes,
+        ?float $weight,
+        array|string|null $image
+    ): bool {
         try {
-            if (is_array($sizes)) {
-                $sizes = json_encode($sizes);
-            }
+            $sizes = is_array($sizes)
+                ? json_encode($sizes, JSON_THROW_ON_ERROR)
+                : $sizes;
 
-            if (is_array($image)) {
-                $image = json_encode($image);
-            }
-
+            $image = is_array($image)
+                ? json_encode($image, JSON_THROW_ON_ERROR)
+                : $image;
             $sql = "UPDATE products SET
+                        category_id = :category_id,
+                        brand_id = :brand_id,
                         name = :name,
                         description = :description,
                         ingredients = :ingredients,
@@ -164,11 +164,12 @@ class ProductModel
                         sizes = :sizes,
                         weight = :weight,
                         image = :image
+                        
                     WHERE id = :id";
 
             $stmt = $this->pdo->prepare($sql);
 
-            $stmt->execute([
+            return $stmt->execute([
                 'id' => $id,
                 'name' => $name,
                 'description' => $description,
@@ -179,19 +180,21 @@ class ProductModel
                 'stock' => $stock,
                 'sizes' => $sizes,
                 'weight' => $weight,
-                'image' => $image
+                'image' => $image,
+                'category_id' => $category_id,
+                'brand_id' => $brand_id,
             ]);
 
-            return $stmt->rowCount();
 
-        } catch (PDOException $e) {
-            error_log($e->getMessage());
-            return false;
+
+        } catch (PDOException | JsonException $e) {
+            error_log("Update Product Error: " . $e->getMessage());
+            throw $e;
         }
     }
 
     // Delete product by ID
-    public function deleteProductById($id)
+    public function deleteProductById(int $id): bool
     {
         try {
             $sql = "DELETE FROM products WHERE id = :id";
@@ -199,11 +202,11 @@ class ProductModel
             $stmt = $this->pdo->prepare($sql);
             $stmt->execute(['id' => $id]);
 
-            return $stmt->rowCount();
+            return $stmt->rowCount() > 0;
 
         } catch (PDOException $e) {
-            error_log($e->getMessage());
-            return false;
+            error_log("Delete Product Error: " . $e->getMessage());
+            throw $e;
         }
     }
 }
