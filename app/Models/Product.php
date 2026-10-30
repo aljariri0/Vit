@@ -206,4 +206,70 @@ class ProductModel
             return false;
         }
     }
+   
+public function searchProducts(array $filters = []): array
+{
+    $sql = "SELECT * FROM products WHERE 1=1";
+    $params = [];
+
+    // 1. Search by name, description, ingredients
+    if (!empty($filters["search"])) {
+        $sql .= " AND (
+            name LIKE :name
+            OR description LIKE :description
+            OR ingredients LIKE :ingredients
+        )";
+
+        $keyword = "%" . $filters["search"] . "%";
+
+        $params["name"] = $keyword;
+        $params["description"] = $keyword;
+        $params["ingredients"] = $keyword;
+    }
+
+    // 2. Filter by brand
+    if (!empty($filters["brand_id"])) {
+        $sql .= " AND brand_id = :brand_id";
+        $params["brand_id"] = $filters["brand_id"];
+    }
+
+    // 3. Filter by category
+    if (!empty($filters["category_id"])) {
+        $sql .= " AND category_id = :category_id";
+        $params["category_id"] = $filters["category_id"];
+    }
+
+    // 4. Minimum price
+    if (isset($filters["min_price"]) && $filters["min_price"] !== "") {
+        $sql .= " AND price >= :min_price";
+        $params["min_price"] = $filters["min_price"];
+    }
+
+    // 5. Maximum price
+    if (isset($filters["max_price"]) && $filters["max_price"] !== "") {
+        $sql .= " AND price <= :max_price";
+        $params["max_price"] = $filters["max_price"];
+    }
+
+    // 6. Sorting
+    $sortOptions = [
+        "price_asc"  => "price ASC",
+        "price_desc" => "price DESC",
+        "newest"     => "id DESC",
+        "oldest"     => "id ASC"
+    ];
+
+    $sort = $filters["sort"] ?? "newest";
+
+    $orderBy = $sortOptions[$sort] ?? "id DESC";
+
+    $sql .= " ORDER BY " . $orderBy;
+
+    // 7. Execute query
+    $stmt = $this->pdo->prepare($sql);
+    $stmt->execute($params);
+
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
 }
