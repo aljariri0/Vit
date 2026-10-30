@@ -1,6 +1,6 @@
 <?php
 
-require_once __DIR__ . '/../../Database.php'; 
+require_once __DIR__ . '/../Database.php';
 
 class OverviewController
 {
@@ -54,3 +54,4 @@ class OverviewController
         require_once __DIR__ . '/../../Views/admin/overview.php';
     }
 }
+

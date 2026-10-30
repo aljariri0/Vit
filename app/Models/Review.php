@@ -1,6 +1,5 @@
 <?php
 
-
 require_once __DIR__ . '/../Database.php';
 
 class Review
@@ -10,6 +9,17 @@ class Review
     public function __construct(PDO $db)
     {
         $this->db = $db;
+    }
+
+    public function isUserBlockedFromCommenting(int $userId): bool
+    {
+        $sql = "SELECT is_blocked_from_commenting FROM users WHERE id = ?";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([$userId]);
+
+        $status = $stmt->fetchColumn();
+
+        return (int) $status === 1;
     }
 
     // 1. Get all reviews (with user names and product names for admin overview)
@@ -93,6 +103,10 @@ class Review
         ?string $comment = null,
         ?string $image = null
     ): int {
+        if ($this->isUserBlockedFromCommenting($userId)) {
+            $comment = null;
+        }
+
         $sql = "INSERT INTO reviews 
                 (product_id, user_id, star_rating, comment, image)
                 VALUES (?, ?, ?, ?, ?)";
