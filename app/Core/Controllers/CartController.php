@@ -46,207 +46,336 @@ class CartController
         }
     }
 
-public function addToCart(
-    PDO $pdo,
-    int $productId,
-    int $quantity = 1,
-    string $size = ""
-): array {
+    public function addToCart(
+        PDO $pdo,
+        int $productId,
+        int $quantity = 1,
+        string $size = ""
+    ): array {
 
-    if ($productId <= 0 || $quantity <= 0) {
-        throw new InvalidArgumentException(
-            "Invalid product or quantity"
+        if ($productId <= 0 || $quantity <= 0) {
+            throw new InvalidArgumentException(
+                "Invalid product or quantity"
+            );
+        }
+
+        $productModel = new ProductModel($pdo);
+
+        $product = $productModel->getProductById($productId);
+
+        // 1. Check if product exists
+        if (!$product) {
+            throw new InvalidArgumentException(
+                "Product not available"
+            );
+        }
+
+        // 2. Convert sizes JSON to PHP array
+        $availableSizes = json_decode(
+            $product["sizes"] ?? "[]",
+            true
         );
-    }
 
-    $productModel = new ProductModel($pdo);
-    $product = $productModel->getProductById($productId);
+        // 3. Validate sizes data
+        if (!is_array($availableSizes)) {
+            throw new InvalidArgumentException(
+                "Invalid product sizes"
+            );
+        }
 
-if (!$product) {
-    throw new InvalidArgumentException(
-        "Product not available"
-    );
-}
-
-// Check whether the product is active
-$stmt = $pdo->prepare(
-    "SELECT is_active FROM products WHERE id = :id"
-);
-
-$stmt->execute([
-    "id" => $productId
-]);
-
-$isActive = $stmt->fetchColumn();
-
-if ((int)$isActive !== 1) {
-    throw new InvalidArgumentException(
-        "Product is inactive"
-    );
-}
+        // 4. Check selected size
+        if (!in_array($size, $availableSizes, true)) {
+            throw new InvalidArgumentException(
+                "Selected size is not available"
+            );
+        }
 
 
-    $key = $productId . ":" . $size;
+        if (!$product) {
+            throw new InvalidArgumentException(
+                "Product not available"
+            );
+        }
 
-    $currentQuantity =
-        $_SESSION["cart"][$key]["quantity"] ?? 0;
-
-    $newQuantity = $currentQuantity + $quantity;
-
-    if ($newQuantity > (int)$product["stock"]) {
-        throw new InvalidArgumentException(
-            "Not enough stock"
-        );
-    }
-
-    $_SESSION["cart"][$key] = [
-        "product_id" => $productId,
-        "size" => $size,
-        "quantity" => $newQuantity
-    ];
-
-    return $_SESSION["cart"];
-}
-
-
-public function getCart(): array
-{
-    return $_SESSION["cart"] ?? [];
-}
-
-
-public function getCartDetails(PDO $pdo): array
-{
-    $items = [];
-    $total = 0;
-
-    foreach ($this->getCart() as $cartItem) {
-
+        // Check whether the product is active
         $stmt = $pdo->prepare(
-            "SELECT id, name, price, stock, is_active
-             FROM products
-             WHERE id = :id"
+            "SELECT is_active FROM products WHERE id = :id"
         );
 
         $stmt->execute([
-            "id" => $cartItem["product_id"]
+            "id" => $productId
+        ]);
+
+        $isActive = $stmt->fetchColumn();
+
+        if ((int)$isActive !== 1) {
+            throw new InvalidArgumentException(
+                "Product is inactive"
+            );
+        }
+
+
+        $key = $productId . ":" . $size;
+
+        $currentQuantity =
+            $_SESSION["cart"][$key]["quantity"] ?? 0;
+
+        $newQuantity = $currentQuantity + $quantity;
+
+        if ($newQuantity > (int)$product["stock"]) {
+            throw new InvalidArgumentException(
+                "Not enough stock"
+            );
+        }
+
+        $_SESSION["cart"][$key] = [
+            "product_id" => $productId,
+            "size" => $size,
+            "quantity" => $newQuantity
+        ];
+
+        return $_SESSION["cart"];
+    }
+
+
+    public function getCart(): array
+    {
+        return $_SESSION["cart"] ?? [];
+    }
+
+
+    public function getCartDetails(PDO $pdo): array
+    {
+        $items = [];
+        $total = 0;
+
+        foreach ($this->getCart() as $cartItem) {
+
+            $stmt = $pdo->prepare(
+                "SELECT id, name, price, discount_percent, stock, is_active
+     FROM products
+     WHERE id = :id"
+            );
+
+            $stmt->execute([
+                "id" => $cartItem["product_id"]
+            ]);
+
+            $product = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$product || (int)$product["is_active"] !== 1) {
+                continue;
+            }
+
+
+            $quantity = (int) $cartItem["quantity"];
+
+            // Original price
+            $price = (float) $product["price"];
+
+            // Discount percentage
+            $discountPercent = (float) ($product["discount_percent"] ?? 0);
+
+            // Calculate discount amount
+            $discountAmount = $price * ($discountPercent / 100);
+
+            // Price after discount
+            $finalPrice = round($price - $discountAmount, 2);
+
+            // Calculate item subtotal
+            $subtotal = $finalPrice * $quantity;
+
+            // Add to cart total
+            $total += $subtotal;
+
+
+            $items[] = [
+                "product_id" => (int)$product["id"],
+                "name" => $product["name"],
+                "size" => $cartItem["size"],
+                "quantity" => $quantity,
+                "original_price" => number_format($price, 2, ".", ""),
+                "discount_percent" => $discountPercent,
+                "price" => number_format($finalPrice, 2, ".", ""),
+                "subtotal" => number_format($subtotal, 2, ".", "")
+            ];
+        }
+
+        return [
+            "items" => $items,
+            "total" => number_format($total, 2, ".", ""),
+            "currency" => "JOD"
+        ];
+    }
+
+
+    public function validateCart(PDO $pdo): array
+    {
+        $cart = $this->getCart();
+
+        if (empty($cart)) {
+            throw new InvalidArgumentException("Cart is empty");
+        }
+
+        $errors = [];
+        $quantitiesByProduct = [];
+
+        foreach ($cart as $item) {
+
+            $productId = (int) $item["product_id"];
+            $quantity = (int) $item["quantity"];
+            $size = $item["size"];
+
+            $stmt = $pdo->prepare(
+                "SELECT id, stock, sizes, is_active
+             FROM products
+             WHERE id = :id"
+            );
+
+            $stmt->execute(["id" => $productId]);
+            $product = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$product || (int)$product["is_active"] !== 1) {
+                $errors[] = "Product $productId is unavailable";
+                continue;
+            }
+
+            $availableSizes = json_decode(
+                $product["sizes"] ?? "[]",
+                true
+            );
+
+            if (
+                !is_array($availableSizes) ||
+                !in_array($size, $availableSizes, true)
+            ) {
+                $errors[] = "Invalid size for product $productId";
+            }
+
+            if ($quantity <= 0) {
+                $errors[] = "Invalid quantity for product $productId";
+                continue;
+            }
+
+            // Combine quantities across sizes
+            $quantitiesByProduct[$productId] =
+                ($quantitiesByProduct[$productId] ?? 0) + $quantity;
+
+            if ($quantitiesByProduct[$productId] > (int)$product["stock"]) {
+                $errors[] = "Not enough stock for product $productId";
+            }
+        }
+
+        return [
+            "valid" => empty($errors),
+            "errors" => $errors
+        ];
+    }
+
+
+    public function updateCartQuantity(
+        PDO $pdo,
+        int $productId,
+        int $quantity,
+        string $size = ""
+    ): array {
+
+        // 1. Validate input
+        if ($productId <= 0 || $quantity <= 0) {
+            throw new InvalidArgumentException(
+                "Invalid product or quantity"
+            );
+        }
+
+        // 2. Find the product in session cart
+        $key = $productId . ":" . $size;
+
+        if (!isset($_SESSION["cart"][$key])) {
+            throw new InvalidArgumentException(
+                "Product not found in cart"
+            );
+        }
+
+        // 3. Check available stock
+        $stmt = $pdo->prepare(
+            "SELECT stock, is_active
+         FROM products
+         WHERE id = :id"
+        );
+
+        $stmt->execute([
+            "id" => $productId
         ]);
 
         $product = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$product || (int)$product["is_active"] !== 1) {
-            continue;
+            throw new InvalidArgumentException(
+                "Product not available"
+            );
         }
 
-        $quantity = (int)$cartItem["quantity"];
-        $price = (float)$product["price"];
+        if ($quantity > (int)$product["stock"]) {
+            throw new InvalidArgumentException(
+                "Not enough stock"
+            );
+        }
 
-        $subtotal = $price * $quantity;
-        $total += $subtotal;
+        // 4. Update quantity in session
+        $_SESSION["cart"][$key]["quantity"] = $quantity;
 
-        $items[] = [
-            "product_id" => (int)$product["id"],
-            "name" => $product["name"],
-            "size" => $cartItem["size"],
-            "quantity" => $quantity,
-            "price" => number_format($price, 2, ".", ""),
-            "subtotal" => number_format($subtotal, 2, ".", "")
-        ];
+        // 5. Return updated cart
+        return $_SESSION["cart"];
     }
 
-    return [
-        "items" => $items,
-        "total" => number_format($total, 2, ".", ""),
-        "currency" => "JOD"
-    ];
-}
+    public function removeFromCart(
+        int $productId,
+        string $size = ""
+    ): array {
 
+        // 1. Validate product ID
+        if ($productId <= 0) {
+            throw new InvalidArgumentException(
+                "Invalid product ID"
+            );
+        }
 
-public function updateCartQuantity(
-    PDO $pdo,
-    int $productId,
-    int $quantity,
-    string $size = ""
-): array {
+        // 2. Create cart item key
+        $key = $productId . ":" . $size;
 
-    // 1. Validate input
-    if ($productId <= 0 || $quantity <= 0) {
-        throw new InvalidArgumentException(
-            "Invalid product or quantity"
-        );
+        // 3. Check if item exists
+        if (!isset($_SESSION["cart"][$key])) {
+            throw new InvalidArgumentException(
+                "Product not found in cart"
+            );
+        }
+
+        // 4. Remove item from session
+        unset($_SESSION["cart"][$key]);
+
+        // 5. Return updated cart
+        return $_SESSION["cart"];
     }
 
-    // 2. Find the product in session cart
-    $key = $productId . ":" . $size;
+public function clearCart(): array
+{
+    // Remove all products from cart
+    $_SESSION["cart"] = [];
 
-    if (!isset($_SESSION["cart"][$key])) {
-        throw new InvalidArgumentException(
-            "Product not found in cart"
-        );
-    }
-
-    // 3. Check available stock
-    $stmt = $pdo->prepare(
-        "SELECT stock, is_active
-         FROM products
-         WHERE id = :id"
-    );
-
-    $stmt->execute([
-        "id" => $productId
-    ]);
-
-    $product = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if (!$product || (int)$product["is_active"] !== 1) {
-        throw new InvalidArgumentException(
-            "Product not available"
-        );
-    }
-
-    if ($quantity > (int)$product["stock"]) {
-        throw new InvalidArgumentException(
-            "Not enough stock"
-        );
-    }
-
-    // 4. Update quantity in session
-    $_SESSION["cart"][$key]["quantity"] = $quantity;
-
-    // 5. Return updated cart
+    // Return empty cart
     return $_SESSION["cart"];
 }
 
-public function removeFromCart(
-    int $productId,
-    string $size = ""
-): array {
+public function getCartCount(): int
+{
+    $count = 0;
 
-    // 1. Validate product ID
-    if ($productId <= 0) {
-        throw new InvalidArgumentException(
-            "Invalid product ID"
-        );
+    foreach ($this->getCart() as $item) {
+        $count += (int) $item["quantity"];
     }
 
-    // 2. Create cart item key
-    $key = $productId . ":" . $size;
-
-    // 3. Check if item exists
-    if (!isset($_SESSION["cart"][$key])) {
-        throw new InvalidArgumentException(
-            "Product not found in cart"
-        );
-    }
-
-    // 4. Remove item from session
-    unset($_SESSION["cart"][$key]);
-
-    // 5. Return updated cart
-    return $_SESSION["cart"];
+    return $count;
 }
-
-
 
 
 }
