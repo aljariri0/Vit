@@ -20,9 +20,21 @@ class StorefrontController extends Controller
 
     public function home(): void
     {
-        $products = $this->productRows('ORDER BY p.id DESC LIMIT 8');
+        $bestSellers = $this->db->query("SELECT p.*, SUM(oi.quantity) AS units_sold
+            FROM order_items oi
+            INNER JOIN orders o ON o.id = oi.order_id
+            INNER JOIN products p ON p.id = oi.product_id
+            WHERE p.is_active = 1 AND o.status IN ('paid', 'processing', 'shipped', 'delivered')
+            GROUP BY p.id
+            ORDER BY units_sold DESC, p.id DESC
+            LIMIT 3")->fetchAll();
+        $hasSalesData = (bool) $bestSellers;
+        if (!$hasSalesData) {
+            $bestSellers = $this->db->query('SELECT p.*, 0 AS units_sold FROM products p WHERE p.is_active = 1 ORDER BY p.id DESC LIMIT 3')->fetchAll();
+        }
+        $bestSellers = array_map([$this, 'normalizeProduct'], $bestSellers);
         $categories = $this->db->query('SELECT * FROM categories WHERE is_active = 1 ORDER BY name LIMIT 6')->fetchAll();
-        $this->render('store/home', ['products' => $products, 'categories' => $categories, 'title' => 'Wellness, made personal']);
+        $this->render('store/home', ['best_sellers' => $bestSellers, 'has_sales_data' => $hasSalesData, 'categories' => $categories, 'title' => 'Wellness, made personal']);
     }
 
     public function shop(): void
