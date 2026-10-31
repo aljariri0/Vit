@@ -62,8 +62,11 @@ class ShopController
             "price_asc",
             "price_desc",
             "newest",
-            "oldest"
+            "oldest",
+            "rating_desc",
+            "rating_asc"
         ];
+
 
         $sort = $filters["sort"] ?? "newest";
 
@@ -72,6 +75,20 @@ class ShopController
         }
 
         $filters["sort"] = $sort;
-        return $this->productModel->searchProducts($filters);
+
+        // Validate page number
+        $page = filter_var(
+            $filters["page"] ?? 1,
+            FILTER_VALIDATE_INT,
+            ["options" => ["min_range" => 1]]
+        );
+
+        if ($page === false) {
+            throw new InvalidArgumentException("Invalid page number");
+        }
+
+        $filters["page"] = $page;
+        // Call Product Model
+        return $this->productModel->getPaginatedProducts($filters);
     }
 }
