@@ -1,6 +1,7 @@
 <?php
 
-require_once __DIR__ . '/../Database.php';
+
+require_once __DIR__ . '/../Core/Database.php';
 
 class Review
 {
@@ -34,6 +35,7 @@ class Review
                     reviews.image, 
                     reviews.created_at, 
                     reviews.updated_at, 
+                    reviews.status,
                     users.name AS user_name,
                     products.name AS product_name
                 FROM reviews 
@@ -50,22 +52,46 @@ class Review
     public function getByProductId(int $productId): array
     {
         $sql = "SELECT 
-                    reviews.id, 
-                    reviews.product_id, 
-                    reviews.user_id, 
-                    reviews.star_rating, 
-                    reviews.comment, 
-                    reviews.image, 
-                    reviews.created_at, 
-                    reviews.updated_at, 
-                    users.name AS user_name 
-                FROM reviews 
-                JOIN users ON reviews.user_id = users.id 
-                WHERE reviews.product_id = ? 
-                ORDER BY reviews.created_at DESC";
+            reviews.id, 
+            reviews.product_id, 
+            reviews.user_id, 
+            reviews.star_rating, 
+            reviews.comment, 
+            reviews.image, 
+            reviews.status,
+            reviews.created_at, 
+            reviews.updated_at, 
+            users.name AS user_name 
+        FROM reviews 
+        JOIN users ON reviews.user_id = users.id 
+        WHERE reviews.product_id = ? 
+        AND reviews.status = 'approved'
+        ORDER BY reviews.created_at DESC";
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute([$productId]);
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+
+    public function getAllApprovedReviews(): array
+    {
+        $sql = "SELECT
+                reviews.id,
+                reviews.product_id,
+                reviews.user_id,
+                reviews.star_rating,
+                reviews.comment,
+                reviews.created_at,
+                users.name AS user_name
+            FROM reviews
+            JOIN users ON reviews.user_id = users.id
+            WHERE reviews.status = 'approved'
+            ORDER BY reviews.created_at DESC";
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute();
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
@@ -82,6 +108,7 @@ class Review
                     reviews.image, 
                     reviews.created_at, 
                     reviews.updated_at, 
+                    reviews.status,
                     users.name AS user_name 
                 FROM reviews 
                 JOIN users ON reviews.user_id = users.id 
@@ -101,7 +128,8 @@ class Review
         int $userId,
         int $starRating,
         ?string $comment = null,
-        ?string $image = null
+        ?string $image = null,
+        string $status = 'pending'
     ): int {
         if ($this->isUserBlockedFromCommenting($userId)) {
             $comment = null;
@@ -118,7 +146,8 @@ class Review
             $userId,
             $starRating,
             $comment,
-            $image
+            $image,
+            $status
         ]);
 
         return (int) $this->db->lastInsertId();
@@ -159,4 +188,48 @@ class Review
 
         return $stmt->rowCount() > 0;
     }
+
+
+    public function updateStatus(int $id, string $status): bool
+    {
+        $allowedStatuses = ['approved', 'rejected'];
+
+        if (!in_array($status, $allowedStatuses, true)) {
+            return false;
+        }
+
+        $sql = "UPDATE reviews
+            SET status = ?
+            WHERE id = ? AND status = 'pending'";
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([$status, $id]);
+
+        return $stmt->rowCount() > 0;
+    }
+
+    public function getPendingReviews(): array
+    {
+        $sql = "SELECT
+                reviews.id,
+                reviews.product_id,
+                reviews.user_id,
+                reviews.star_rating,
+                reviews.comment,
+                reviews.image,
+                reviews.status,
+                reviews.created_at,
+                users.name AS user_name,
+                products.name AS product_name
+            FROM reviews
+            JOIN users ON reviews.user_id = users.id
+            JOIN products ON reviews.product_id = products.id
+            WHERE reviews.status = 'pending'
+            ORDER BY reviews.created_at DESC";
+
+        $stmt = $this->db->query($sql);
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
 }

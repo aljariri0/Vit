@@ -1,0 +1,6 @@
+{
+    "require": {
+        "consoletvs/profanity": "*",
+        "danek/clean-speak": "^1.0"
+    }
+}
