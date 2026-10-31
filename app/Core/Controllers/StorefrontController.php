@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../Database.php';
+require_once __DIR__ . '/../BrandFilter.php';
 require_once __DIR__ . '/Controller.php';
 require_once __DIR__ . '/CartController.php';
 
@@ -28,6 +29,7 @@ class StorefrontController extends Controller
     {
         $search = trim((string) ($_GET['q'] ?? ''));
         $category = filter_var($_GET['category'] ?? null, FILTER_VALIDATE_INT) ?: 0;
+        $brandFilter = new BrandFilter($this->db, $_GET['brand'] ?? null);
         $sql = 'SELECT p.* FROM products p WHERE p.is_active = 1';
         $params = [];
         if ($search !== '') {
@@ -38,14 +40,17 @@ class StorefrontController extends Controller
             $sql .= ' AND p.category_id = ?';
             $params[] = $category;
         }
+        $brandFilter->apply($sql, $params);
         $sql .= ' ORDER BY p.id DESC';
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
         $this->render('store/shop', [
             'products' => array_map([$this, 'normalizeProduct'], $stmt->fetchAll()),
             'categories' => $this->db->query('SELECT * FROM categories WHERE is_active = 1 ORDER BY name')->fetchAll(),
+            'brands' => $brandFilter->options(),
             'search' => $search,
             'selectedCategory' => $category,
+            'selectedBrand' => $brandFilter->selected(),
             'title' => $search !== '' ? 'Results for “' . $search . '”' : 'The wellness edit',
         ]);
     }
@@ -135,7 +140,10 @@ class StorefrontController extends Controller
             $decoded = json_decode((string) ($product[$field] ?? ''), true);
             $product[$field] = is_array($decoded) ? $decoded : [];
         }
-        $product['image_url'] = (string) ($product['image'][0] ?? '');
+        $storedImage = (string) ($product['image'][0] ?? '');
+        $product['image_url'] = str_starts_with($storedImage, '/assets/')
+            ? $this->basePath() . $storedImage
+            : $storedImage;
         return $product;
     }
 
