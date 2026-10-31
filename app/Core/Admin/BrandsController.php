@@ -10,15 +10,11 @@ class BrandsController
     {
         $this->brandModel = new Brand($pdo);
     }
-
-    // List all brands.
     public function index(): array
     {
         $this->requireAdmin();
         return $this->brandModel->getAll();
     }
-
-    // Get one brand by ID.
     public function show(int $id): ?array
     {
         $this->requireAdmin();
@@ -29,8 +25,6 @@ class BrandsController
 
         return $this->brandModel->get($id);
     }
-
-    // Add a brand.
     public function store(array $data): int
     {
         $adminId = $this->requireAdmin();
@@ -43,8 +37,6 @@ class BrandsController
             $adminId
         );
     }
-
-    // Edit a brand.
     public function update(int $id, array $data): bool
     {
         $this->requireAdmin();
@@ -62,8 +54,6 @@ class BrandsController
             $brand['discount_percent']
         );
     }
-
-    // Delete a brand.
     public function delete(int $id): bool
     {
         $this->requireAdmin();

@@ -8,8 +8,6 @@ class Stock
     {
         $this->db = $db;
     }
-
-    // List products, showing the lowest stock quantities first.
     public function getInventory(int $lowStockLimit = 10): array
     {
         $sql = "SELECT id, name, stock, discount_percent,
@@ -33,8 +31,6 @@ class Stock
 
         return (bool) $stmt->fetchColumn();
     }
-
-    // Set a product's available quantity.
     public function updateQuantity(int $productId, int $quantity): bool
     {
         $stmt = $this->db->prepare(
@@ -43,8 +39,6 @@ class Stock
 
         return $stmt->execute([$quantity, $productId]);
     }
-
-    // Set a discount on one product.
     public function updateDiscount(int $productId, float $discount): bool
     {
         $stmt = $this->db->prepare(

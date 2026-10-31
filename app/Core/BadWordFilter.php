@@ -9,7 +9,6 @@ class BadWordFilter
 {
 
     private array $customWords = [
-        // Profanity
         'fuck',
         'fucking',
         'fucker',
@@ -25,8 +24,6 @@ class BadWordFilter
         'piss',
         'pissed',
         'crap',
-
-        // Insults
         'idiot',
         'moron',
         'stupid',
@@ -34,8 +31,6 @@ class BadWordFilter
         'loser',
         'jerk',
         'retard',
-
-        // Offensive expressions
         'son of a bitch',
         'piece of shit',
         'fuck off',

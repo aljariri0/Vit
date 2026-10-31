@@ -3,11 +3,6 @@ CREATE DATABASE IF NOT EXISTS vitemines
     COLLATE utf8mb4_unicode_ci;
 
 USE vitemines;
-
-
--- ============================================================================
--- 1. ADMINS TABLE
--- ============================================================================
 CREATE TABLE admins (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
@@ -15,11 +10,6 @@ CREATE TABLE admins (
     password_hash VARCHAR(255) NOT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
-
-
--- ============================================================================
--- 2. USERS TABLE
--- ============================================================================
 CREATE TABLE users (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
@@ -48,11 +38,6 @@ CREATE TABLE users (
         ON DELETE SET NULL
         ON UPDATE CASCADE
 ) ENGINE=InnoDB;
-
-
--- ============================================================================
--- 3. CATEGORIES TABLE
--- ============================================================================
 CREATE TABLE categories (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL UNIQUE,
@@ -72,11 +57,6 @@ CREATE TABLE categories (
         ON DELETE SET NULL
         ON UPDATE CASCADE
 ) ENGINE=InnoDB;
-
-
--- ============================================================================
--- 4. BRANDS TABLE
--- ============================================================================
 CREATE TABLE brands (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL UNIQUE,
@@ -95,11 +75,6 @@ CREATE TABLE brands (
         ON DELETE SET NULL
         ON UPDATE CASCADE
 ) ENGINE=InnoDB;
-
-
--- ============================================================================
--- 5. PRODUCTS TABLE
--- ============================================================================
 CREATE TABLE products (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     category_id INT UNSIGNED NOT NULL,
@@ -152,11 +127,6 @@ CREATE TABLE products (
         ON DELETE SET NULL
         ON UPDATE CASCADE
 ) ENGINE=InnoDB;
-
-
--- ============================================================================
--- 6. ORDERS TABLE
--- ============================================================================
 CREATE TABLE orders (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     user_id INT UNSIGNED NOT NULL,
@@ -200,11 +170,6 @@ CREATE TABLE orders (
         ON DELETE SET NULL
         ON UPDATE CASCADE
 ) ENGINE=InnoDB;
-
-
--- ============================================================================
--- 7. ORDER ITEMS TABLE
--- ============================================================================
 CREATE TABLE order_items (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     order_id INT UNSIGNED NOT NULL,
@@ -230,11 +195,6 @@ CREATE TABLE order_items (
         REFERENCES products(id)
         ON DELETE SET NULL
 ) ENGINE=InnoDB;
-
-
--- ============================================================================
--- 8. REVIEWS TABLE
--- ============================================================================
 CREATE TABLE reviews (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     product_id INT UNSIGNED NOT NULL,
@@ -274,11 +234,6 @@ CREATE TABLE reviews (
         ON DELETE SET NULL
         ON UPDATE CASCADE
 ) ENGINE=InnoDB;
-
-
--- ============================================================================
--- 9. PAYMENTS TABLE
--- ============================================================================
 CREATE TABLE payments (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     order_id INT UNSIGNED NOT NULL,
@@ -286,6 +241,7 @@ CREATE TABLE payments (
     method ENUM('visa', 'paypal', 'cash_on_delivery') NOT NULL,
 
     provider_transaction_id VARCHAR(120) NULL UNIQUE,
+    gateway_metadata JSON NULL,
     amount DECIMAL(10,2) NOT NULL,
     card_last4 CHAR(4) NULL,
     paid_at DATETIME NULL,
@@ -315,11 +271,6 @@ CREATE TABLE payments (
         ON DELETE SET NULL
         ON UPDATE CASCADE
 ) ENGINE=InnoDB;
-
-
--- ============================================================================
--- 10. AI ASSISTANT REQUESTS TABLE
--- ============================================================================
 CREATE TABLE ai_assistant_requests (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     user_id INT UNSIGNED NULL,
@@ -342,3 +293,4 @@ CREATE TABLE ai_assistant_requests (
         ON DELETE SET NULL
         ON UPDATE CASCADE
 ) ENGINE=InnoDB;
+

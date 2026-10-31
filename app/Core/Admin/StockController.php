@@ -10,8 +10,6 @@ class StockController
     {
         $this->stockModel = new Stock($pdo);
     }
-
-    // Return products sorted from lowest stock to highest stock.
     public function index(int $lowStockLimit = 10): array
     {
         $this->requireAdmin();
@@ -24,8 +22,6 @@ class StockController
 
         return $this->stockModel->getInventory($lowStockLimit);
     }
-
-    // Change the stock quantity for one product.
     public function updateStock(int $productId, $quantity): bool
     {
         $this->requireAdmin();
@@ -43,8 +39,6 @@ class StockController
 
         return $this->stockModel->updateQuantity($productId, $quantity);
     }
-
-    // Set a discount for the selected product.
     public function updateDiscount(int $productId, $discount): bool
     {
         $this->requireAdmin();

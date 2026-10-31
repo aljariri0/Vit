@@ -14,7 +14,6 @@ class ShopController
 
     public function getProducts(array $filters = []): array
     {
-        // Validate search
         $search = $filters["search"] ?? "";
 
         if (!is_string($search)) {
@@ -22,8 +21,6 @@ class ShopController
         }
 
         $filters["search"] = trim($search);
-
-        // Validate brand and category
         foreach (["brand_id", "category_id"] as $field) {
             if (isset($filters[$field]) && $filters[$field] !== "") {
                 $id = filter_var(
@@ -39,8 +36,6 @@ class ShopController
                 $filters[$field] = $id;
             }
         }
-
-        // Validate prices
         foreach (["min_price", "max_price"] as $field) {
             if (isset($filters[$field]) && $filters[$field] !== "") {
                 if (
@@ -63,14 +58,15 @@ class ShopController
         ) {
             throw new InvalidArgumentException("Minimum price exceeds maximum price");
         }
-
-        // Validate sorting
         $allowedSorts = [
             "price_asc",
             "price_desc",
             "newest",
-            "oldest"
+            "oldest",
+            "rating_desc",
+            "rating_asc"
         ];
+
 
         $sort = $filters["sort"] ?? "newest";
 
@@ -80,7 +76,19 @@ class ShopController
 
         $filters["sort"] = $sort;
 
+        // Validate page number
+        $page = filter_var(
+            $filters["page"] ?? 1,
+            FILTER_VALIDATE_INT,
+            ["options" => ["min_range" => 1]]
+        );
+
+        if ($page === false) {
+            throw new InvalidArgumentException("Invalid page number");
+        }
+
+        $filters["page"] = $page;
         // Call Product Model
-        return $this->productModel->searchProducts($filters);
+        return $this->productModel->getPaginatedProducts($filters);
     }
 }

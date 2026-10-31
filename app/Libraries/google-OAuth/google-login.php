@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/../app/Core/google_config.php';
+require_once __DIR__ . '/../../Core/google_config.php';
 
 $params = [
     'response_type' => 'code',
