@@ -22,7 +22,8 @@ class StorefrontController extends Controller
     {
         $products = $this->productRows('ORDER BY p.id DESC LIMIT 8');
         $categories = $this->db->query('SELECT * FROM categories WHERE is_active = 1 ORDER BY name LIMIT 6')->fetchAll();
-        $this->render('store/home', ['products' => $products, 'categories' => $categories, 'title' => 'Wellness, made personal']);
+        $brands = $this->db->query('SELECT DISTINCT b.id, b.name FROM brands b INNER JOIN products p ON p.brand_id = b.id ORDER BY b.name')->fetchAll();
+        $this->render('store/home', ['products' => $products, 'categories' => $categories, 'brands' => $brands, 'title' => 'Wellness, made personal']);
     }
 
     public function shop(): void

@@ -20,3 +20,17 @@ Admin pages require an account whose session role is `admin`. Customer sign-up a
 For an existing database, apply `database/migrations/20261031_payment_and_review_alignment.sql` only if these changes have not already been applied. Do not run it after importing the fresh schema or after manually running the two `ALTER TABLE` statements; that would add the columns twice.
 
 Tailwind is loaded with its browser CDN because this project has no Node build setup; that needs internet access in the browser. For a production deployment, switch to Tailwind's CLI build.
+
+## Google sign-in
+
+The separate account pages are `/login` and `/register`. Both use `/auth/google`, with the callback at `/auth/google/callback`.
+
+Create a Web application OAuth client in Google Cloud, then set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `GOOGLE_REDIRECT_URI` in `.env`. For the local PHP server, register this exact authorized redirect URI:
+
+```
+http://127.0.0.1:8000/auth/google/callback
+```
+
+For an Apache subdirectory or a hosted site, use that site's exact callback URL and set `APP_BASE_PATH` to its subdirectory (leave it empty for a root deployment). Keep the client secret on the server. Missing configuration returns a friendly message and leaves email authentication available. Google-only accounts are created after profile verification. Existing password accounts are not automatically linked by matching email.
+
+Configuration reference: https://developers.google.com/identity/protocols/oauth2/web-server

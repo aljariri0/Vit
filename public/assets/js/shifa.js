@@ -44,3 +44,41 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 });
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('[data-toggle-password]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const input = document.getElementById(button.dataset.togglePassword);
+      const show = input.type === 'password';
+      input.type = show ? 'text' : 'password';
+      button.textContent = show ? 'Hide' : 'Show';
+      button.setAttribute('aria-pressed', String(show));
+      button.setAttribute('aria-label', `${show ? 'Hide' : 'Show'} ${input.name === 'password_confirmation' ? 'confirmation password' : 'password'}`);
+    });
+  });
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+  const dropdowns = [...document.querySelectorAll('[data-header-dropdown]')];
+  dropdowns.forEach((dropdown) => {
+    dropdown.querySelector('summary').addEventListener('click', () => {
+      dropdowns.forEach((other) => { if (other !== dropdown) other.open = false; });
+    });
+    dropdown.addEventListener('focusout', (event) => {
+      if (event.relatedTarget && !dropdown.contains(event.relatedTarget)) dropdown.open = false;
+    });
+  });
+  document.addEventListener('click', (event) => {
+    dropdowns.forEach((dropdown) => {
+      if (!dropdown.contains(event.target)) dropdown.open = false;
+    });
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    const open = dropdowns.find((dropdown) => dropdown.open);
+    if (open) {
+      open.open = false;
+      open.querySelector('summary').focus();
+    }
+  });
+});

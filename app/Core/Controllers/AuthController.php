@@ -13,7 +13,6 @@ class AuthController
     {
         $name = trim($name);
         $email = trim($email);
-        $password = trim($password);
 
         if (empty($name) || strlen($name) > 100 || empty($email) || empty($password)) {
             return [
@@ -62,7 +61,6 @@ class AuthController
     public function login(string $email, string $password): array
     {
         $email = trim($email);
-        $password = trim($password);
 
         if (empty($email) || empty($password)) {
             return [
@@ -105,19 +103,21 @@ class AuthController
     }
     public function handleGoogleUser(string $googleId, string $name, string $email): array
     {
-        $stmt = $this->db->prepare("SELECT id, name, email FROM users WHERE google_id = ? OR email = ? LIMIT 1");
-        $stmt->execute([$googleId, $email]);
+        $stmt = $this->db->prepare("SELECT id, name, email FROM users WHERE google_id = ? LIMIT 1");
+        $stmt->execute([$googleId]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if ($user) {
-            $updateStmt = $this->db->prepare("UPDATE users SET google_id = ? WHERE id = ?");
-            $updateStmt->execute([$googleId, $user['id']]);
-
             $this->startUserSession($user['id'], $user['name'], $user['email'], 'user');
             return [
                 'status' => true,
                 'redirect' => '/profile'
             ];
+        }
+        $existingEmail = $this->db->prepare('SELECT id FROM users WHERE email = ? LIMIT 1');
+        $existingEmail->execute([$email]);
+        if ($existingEmail->fetchColumn() !== false) {
+            return ['status' => false, 'message' => 'An account already uses this email. Please sign in with your existing password.'];
         }
         $insertStmt = $this->db->prepare("INSERT INTO users (name, email, google_id, created_at) VALUES (?, ?, ?, NOW())");
         $insertStmt->execute([$name, $email, $googleId]);

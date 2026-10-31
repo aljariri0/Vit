@@ -2,9 +2,8 @@
 
 require_once __DIR__ . '/../../Core/google_config.php';
 
-if (GOOGLE_CLIENT_ID === '' || GOOGLE_REDIRECT_URI === '') {
-    http_response_code(503);
-    exit('Google sign-in is not configured.');
+if (GOOGLE_CLIENT_ID === '' || GOOGLE_CLIENT_SECRET === '' || GOOGLE_REDIRECT_URI === '') {
+    googleAuthFailure('Google sign-in is not available yet. Please continue with email.');
 }
 
 if (session_status() === PHP_SESSION_NONE) {
@@ -13,6 +12,7 @@ if (session_status() === PHP_SESSION_NONE) {
 
 $state = bin2hex(random_bytes(32));
 $_SESSION['google_oauth_state'] = $state;
+$_SESSION['google_oauth_started'] = time();
 
 $params = [
     'response_type' => 'code',
