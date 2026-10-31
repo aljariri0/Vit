@@ -2,9 +2,9 @@
 // app/Core/Controllers/CheckoutController.php
 
 require_once __DIR__ . '/Controller.php'; // Your base controller
-require_once __DIR__ . '/../Models/Payment.php';
-require_once __DIR__ . '/../Models/Order.php';
-require_once __DIR__ . '/../Services/StripeService.php';
+require_once __DIR__ . '/../../Models/Payment.php';
+require_once __DIR__ . '/../../Models/Order.php';
+require_once __DIR__ . '/../../Services/StripeService.php';
 
 class CheckoutController extends Controller
 {
@@ -20,7 +20,7 @@ class CheckoutController extends Controller
         $this->orderModel   = new Order();
         $this->stripe       = new StripeService();
         $this->config       = require __DIR__ . '/../config.php';
-
+        
         // Ensure user is logged in
         if (!isset($_SESSION['user_id'])) {
             header('Location: /login');
@@ -48,8 +48,8 @@ class CheckoutController extends Controller
 
         // 2. Save Pending Payment in DB
         $paymentId = $this->paymentModel->createPending(
-            $orderId,
-            $order['total'],
+            $orderId, 
+            $order['total'], 
             $intentData['intent_id'] // Saved in provider_transaction_id
         );
 
@@ -66,7 +66,7 @@ class CheckoutController extends Controller
     public function verify()
     {
         header('Content-Type: application/json');
-
+        
         $input = json_decode(file_get_contents('php://input'), true);
         $intentId = $input['payment_intent_id'] ?? '';
 
@@ -89,8 +89,8 @@ class CheckoutController extends Controller
         if ($verification['ok']) {
             // SUCCESS: Update DB with card last4 and FULL JSON metadata
             $this->paymentModel->markSucceeded(
-                $payment['id'],
-                $verification['last4'],
+                $payment['id'], 
+                $verification['last4'], 
                 $verification['raw_data'] // Saved in gateway_metadata
             );
 
