@@ -9,21 +9,34 @@ class UserOrder extends Order
         array $items,
         array $shippingData
     ): int {
+        $shippingData = $this->validateShippingData($shippingData);
+
         try {
             $this->db->beginTransaction();
 
-            if (empty($items)) {
+            if ($userId <= 0 || empty($items)) {
                 throw new InvalidArgumentException('Order items are required');
             }
 
             $subtotal = 0;
+            $discountTotal = 0;
             $orderItems = [];
 
             foreach ($items as $item) {
-                $productId = (int) $item['product_id'];
-                $quantity = (int) $item['quantity'];
-
-                if ($quantity < 1) {
+                if (!is_array($item)) {
+                    throw new InvalidArgumentException('Invalid order item');
+                }
+                $productId = filter_var(
+                    $item['product_id'] ?? null,
+                    FILTER_VALIDATE_INT,
+                    ['options' => ['min_range' => 1]]
+                );
+                $quantity = filter_var(
+                    $item['quantity'] ?? null,
+                    FILTER_VALIDATE_INT,
+                    ['options' => ['min_range' => 1]]
+                );
+                if ($productId === false || $quantity === false) {
                     throw new InvalidArgumentException('Invalid quantity');
                 }
 
@@ -33,18 +46,36 @@ class UserOrder extends Order
                     throw new Exception('Product not found');
                 }
 
+                if ((int) $product['is_active'] !== 1) {
+                    throw new Exception('Product is unavailable');
+                }
+
                 if ((int) $product['stock'] < $quantity) {
                     throw new Exception('Not enough stock');
+                }
+
+                $availableSizes = json_decode($product['sizes'] ?? '[]', true);
+                $size = $item['size'] ?? null;
+                if ($size !== null && !is_string($size)) {
+                    throw new InvalidArgumentException('Invalid product size');
+                }
+                if (
+                    !is_array($availableSizes) ||
+                    ($availableSizes && !in_array($size, $availableSizes, true)) ||
+                    (!$availableSizes && $size !== null && $size !== '')
+                ) {
+                    throw new InvalidArgumentException('Invalid product size');
                 }
 
                 $unitPrice = $this->calculateUnitPrice($product);
 
                 $subtotal += $unitPrice * $quantity;
+                $discountTotal += ((float) $product['price'] - $unitPrice) * $quantity;
 
                 $orderItems[] = [
                     'product_id' => $productId,
                     'product_name' => $product['name'],
-                    'size' => $item['size'] ?? null,
+                    'size' => $size,
                     'quantity' => $quantity,
                     'unit_price' => $unitPrice
                 ];
@@ -69,7 +100,7 @@ class UserOrder extends Order
                     (
                         :user_id,
                         :total,
-                        0,
+                        :discount_total,
                         :shipping_total,
                         :ship_name,
                         :ship_phone,
@@ -82,6 +113,7 @@ class UserOrder extends Order
             $stmt->execute([
                 ':user_id' => $userId,
                 ':total' => $total,
+                ':discount_total' => $discountTotal,
                 ':shipping_total' => $shippingTotal,
                 ':ship_name' => $shippingData['ship_name'],
                 ':ship_phone' => $shippingData['ship_phone'],
@@ -185,6 +217,8 @@ class UserOrder extends Order
         array $items,
         array $shippingData
     ): bool {
+        $shippingData = $this->validateShippingData($shippingData);
+
         try {
             $this->db->beginTransaction();
 
@@ -229,13 +263,24 @@ class UserOrder extends Order
             $stmt->execute([':order_id' => $orderId]);
 
             $subtotal = 0;
+            $discountTotal = 0;
             $newItems = [];
 
             foreach ($items as $item) {
-                $productId = (int) $item['product_id'];
-                $quantity = (int) $item['quantity'];
-
-                if ($quantity < 1) {
+                if (!is_array($item)) {
+                    throw new InvalidArgumentException('Invalid order item');
+                }
+                $productId = filter_var(
+                    $item['product_id'] ?? null,
+                    FILTER_VALIDATE_INT,
+                    ['options' => ['min_range' => 1]]
+                );
+                $quantity = filter_var(
+                    $item['quantity'] ?? null,
+                    FILTER_VALIDATE_INT,
+                    ['options' => ['min_range' => 1]]
+                );
+                if ($productId === false || $quantity === false) {
                     throw new InvalidArgumentException('Invalid quantity');
                 }
 
@@ -245,18 +290,36 @@ class UserOrder extends Order
                     throw new Exception('Product not found');
                 }
 
+                if ((int) $product['is_active'] !== 1) {
+                    throw new Exception('Product is unavailable');
+                }
+
                 if ((int) $product['stock'] < $quantity) {
                     throw new Exception('Not enough stock');
+                }
+
+                $availableSizes = json_decode($product['sizes'] ?? '[]', true);
+                $size = $item['size'] ?? null;
+                if ($size !== null && !is_string($size)) {
+                    throw new InvalidArgumentException('Invalid product size');
+                }
+                if (
+                    !is_array($availableSizes) ||
+                    ($availableSizes && !in_array($size, $availableSizes, true)) ||
+                    (!$availableSizes && $size !== null && $size !== '')
+                ) {
+                    throw new InvalidArgumentException('Invalid product size');
                 }
 
                 $unitPrice = $this->calculateUnitPrice($product);
 
                 $subtotal += $unitPrice * $quantity;
+                $discountTotal += ((float) $product['price'] - $unitPrice) * $quantity;
 
                 $newItems[] = [
                     'product_id' => $productId,
                     'product_name' => $product['name'],
-                    'size' => $item['size'] ?? null,
+                    'size' => $size,
                     'quantity' => $quantity,
                     'unit_price' => $unitPrice
                 ];
@@ -288,7 +351,7 @@ class UserOrder extends Order
 
             $sql = "UPDATE orders
                     SET total = :total,
-                        discount_total = 0,
+                        discount_total = :discount_total,
                         shipping_total = :shipping_total,
                         ship_name = :ship_name,
                         ship_phone = :ship_phone,
@@ -300,6 +363,7 @@ class UserOrder extends Order
 
             $stmt->execute([
                 ':total' => $total,
+                ':discount_total' => $discountTotal,
                 ':shipping_total' => $shippingTotal,
                 ':ship_name' => $shippingData['ship_name'],
                 ':ship_phone' => $shippingData['ship_phone'],
@@ -324,5 +388,26 @@ class UserOrder extends Order
     public function cancelUserOrder(int $orderId, int $userId): bool
     {
         return $this->cancelOrderProcess($orderId, $userId);
+    }
+
+    private function validateShippingData(array $data): array
+    {
+        $limits = [
+            'ship_name' => 100,
+            'ship_phone' => 30,
+            'ship_address' => 255,
+            'ship_city' => 80,
+        ];
+        $shippingData = [];
+
+        foreach ($limits as $field => $maxLength) {
+            $value = trim((string) ($data[$field] ?? ''));
+            if ($value === '' || strlen($value) > $maxLength) {
+                throw new InvalidArgumentException('Invalid shipping details');
+            }
+            $shippingData[$field] = $value;
+        }
+
+        return $shippingData;
     }
 }

@@ -13,6 +13,11 @@ class PaymentsController extends Controller
         }
 
         $payments = (new Payment())->getAll();
-        $this->view('admin/payments/index', ['payments' => $payments]);
+        $_SESSION['store_csrf'] ??= bin2hex(random_bytes(32));
+        $this->view('layout', [
+            'page_view' => 'admin/payments/index', 'payments' => $payments,
+            'title' => 'Payments', 'base_path' => rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/'),
+            'cart_count' => 0, 'user' => ['name' => $_SESSION['name'] ?? 'Admin'], 'is_admin' => true,
+        ]);
     }
 }

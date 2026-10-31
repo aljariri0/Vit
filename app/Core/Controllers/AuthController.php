@@ -15,7 +15,7 @@ class AuthController
         $email = trim($email);
         $password = trim($password);
 
-        if (empty($name) || empty($email) || empty($password)) {
+        if (empty($name) || strlen($name) > 100 || empty($email) || empty($password)) {
             return [
                 'status' => false,
                 'message' => 'All fields are required !'
@@ -28,10 +28,16 @@ class AuthController
                 'message' => 'Enter a valid email address !'
             ];
         }
+        if (strlen($password) < 8) {
+            return [
+                'status' => false,
+                'message' => 'Password must contain at least 8 characters.'
+            ];
+        }
         $stmt = $this->db->prepare("SELECT id FROM users WHERE email = ? LIMIT 1");
         $stmt->execute([$email]);
 
-        if ($stmt->rowCount() > 0) {
+        if ($stmt->fetchColumn() !== false) {
             return [
                 'status' => false,
                 'message' => 'Email is already registered !'
@@ -72,18 +78,23 @@ class AuthController
             $this->startUserSession($admin['id'], $admin['name'], $admin['email'], 'admin');
             return [
                 'status' => true,
-                'redirect' => 'admin/dashboard.php'
+                'redirect' => '/admin/payments'
             ];
         }
         $userStmt = $this->db->prepare("SELECT id, name, email, password_hash FROM users WHERE email = ? LIMIT 1");
         $userStmt->execute([$email]);
         $user = $userStmt->fetch(PDO::FETCH_ASSOC);
 
-        if ($user && password_verify($password, $user['password_hash'])) {
+        if (
+            $user &&
+            is_string($user['password_hash']) &&
+            $user['password_hash'] !== '' &&
+            password_verify($password, $user['password_hash'])
+        ) {
             $this->startUserSession($user['id'], $user['name'], $user['email'], 'user');
             return [
                 'status' => true,
-                'redirect' => 'index.php'
+                'redirect' => '/profile'
             ];
         }
 
@@ -105,7 +116,7 @@ class AuthController
             $this->startUserSession($user['id'], $user['name'], $user['email'], 'user');
             return [
                 'status' => true,
-                'redirect' => 'index.php'
+                'redirect' => '/profile'
             ];
         }
         $insertStmt = $this->db->prepare("INSERT INTO users (name, email, google_id, created_at) VALUES (?, ?, ?, NOW())");
@@ -115,7 +126,7 @@ class AuthController
         $this->startUserSession($newUserId, $name, $email, 'user');
         return [
             'status' => true,
-            'redirect' => 'index.php'
+            'redirect' => '/profile'
         ];
     }
     private function startUserSession($id, string $name, string $email, string $role): void
@@ -124,6 +135,7 @@ class AuthController
             session_start();
         }
 
+        session_regenerate_id(true);
         $_SESSION['id'] = $id;
         $_SESSION['name'] = $name;
         $_SESSION['email'] = $email;

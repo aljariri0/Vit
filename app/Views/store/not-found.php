@@ -1,0 +1,1 @@
+<section class="empty-state page-empty"><span>✳</span><p class="eyebrow">A SMALL DETOUR</p><h1><?= $e($title ?? 'We couldn’t find that.') ?></h1><p>Let’s find something good for your day instead.</p><a class="button button-dark" href="<?= $e($base) ?>/shop">Explore the collection</a></section>

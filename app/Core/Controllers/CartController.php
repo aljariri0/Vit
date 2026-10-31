@@ -70,29 +70,15 @@ class CartController
                 "Invalid product sizes"
             );
         }
-        if (!in_array($size, $availableSizes, true)) {
+        if (
+            ($availableSizes && !in_array($size, $availableSizes, true)) ||
+            (!$availableSizes && $size !== "")
+        ) {
             throw new InvalidArgumentException(
                 "Selected size is not available"
             );
         }
-
-
-        if (!$product) {
-            throw new InvalidArgumentException(
-                "Product not available"
-            );
-        }
-        $stmt = $pdo->prepare(
-            "SELECT is_active FROM products WHERE id = :id"
-        );
-
-        $stmt->execute([
-            "id" => $productId
-        ]);
-
-        $isActive = $stmt->fetchColumn();
-
-        if ((int)$isActive !== 1) {
+        if ((int) $product["is_active"] !== 1) {
             throw new InvalidArgumentException(
                 "Product is inactive"
             );
@@ -219,7 +205,8 @@ class CartController
 
             if (
                 !is_array($availableSizes) ||
-                !in_array($size, $availableSizes, true)
+                ($availableSizes && !in_array($size, $availableSizes, true)) ||
+                (!$availableSizes && $size !== "")
             ) {
                 $errors[] = "Invalid size for product $productId";
             }
@@ -262,7 +249,7 @@ class CartController
             );
         }
         $stmt = $pdo->prepare(
-            "SELECT stock, is_active
+            "SELECT stock, sizes, is_active
          FROM products
          WHERE id = :id"
         );
@@ -277,6 +264,15 @@ class CartController
             throw new InvalidArgumentException(
                 "Product not available"
             );
+        }
+
+        $availableSizes = json_decode($product["sizes"] ?? "[]", true);
+        if (
+            !is_array($availableSizes) ||
+            ($availableSizes && !in_array($size, $availableSizes, true)) ||
+            (!$availableSizes && $size !== "")
+        ) {
+            throw new InvalidArgumentException("Selected size is not available");
         }
 
         if ($quantity > (int)$product["stock"]) {

@@ -15,7 +15,7 @@ class Payment
     {
         $stmt = $this->pdo->prepare(
             "INSERT INTO payments (order_id, method, amount, provider_transaction_id, status)
-             VALUES (?, 'visa', ?, ?, 'pending')"
+             VALUES (?, 'card', ?, ?, 'pending')"
         );
         $stmt->execute([$orderId, $amount, $transactionId]);
 
@@ -29,11 +29,13 @@ class Payment
              SET status = 'succeeded', paid_at = NOW(), card_last4 = ?, gateway_metadata = ?
              WHERE id = ? AND status = 'pending'"
         );
-        return $stmt->execute([
+        $stmt->execute([
             $cardLast4,
             json_encode($metadata, JSON_THROW_ON_ERROR),
             $paymentId,
         ]);
+
+        return $stmt->rowCount() === 1;
     }
 
     public function markFailed(int $paymentId): bool

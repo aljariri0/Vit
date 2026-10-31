@@ -8,6 +8,7 @@ require_once __DIR__ . '/../../Services/StripeService.php';
 
 class CheckoutController extends Controller
 {
+    private PDO $db;
     private Payment $paymentModel;
     private Order $orderModel;
     private ?StripeService $stripe = null;
@@ -16,14 +17,17 @@ class CheckoutController extends Controller
     public function __construct()
     {
         parent::__construct();
-        $pdo = (new Database())->connect();
-        $this->paymentModel = new Payment($pdo);
-        $this->orderModel = new Order($pdo);
         $this->config = require __DIR__ . '/../config.php';
 
         if ($this->userId() <= 0) {
-            $this->redirect('/login');
+            $base = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/');
+            $this->redirect($base . '/login');
         }
+
+        $pdo = (new Database())->connect();
+        $this->db = $pdo;
+        $this->paymentModel = new Payment($pdo);
+        $this->orderModel = new Order($pdo);
     }
 
     public function index(): void
@@ -101,16 +105,50 @@ class CheckoutController extends Controller
         }
 
         $result = $this->stripe->verifyPayment($intentId);
-        $expectedAmount = (int) round((float) $payment['amount'] * 100);
+        $expectedAmount = (int) round((float) $order['total'] * 100);
         $validIntent = ($result['ok'] ?? false)
             && ($result['amount'] ?? null) === $expectedAmount
+            && (int) round((float) $payment['amount'] * 100) === $expectedAmount
             && ($result['currency'] ?? '') === strtolower($this->config['stripe_currency'])
             && ($result['order_id'] ?? '') === (string) $payment['order_id'];
 
         if ($validIntent) {
-            $this->paymentModel->markSucceeded($payment['id'], $result['last4'], $result['raw_data']);
-            $this->orderModel->updateStatus((int) $payment['order_id'], 'paid');
-            $this->json(['ok' => true, 'message' => 'Payment successful.']);
+            try {
+                $this->db->beginTransaction();
+                $orderUpdated = $this->orderModel->updateStatus(
+                    (int) $payment['order_id'],
+                    'paid'
+                );
+                $paymentUpdated = $orderUpdated && $this->paymentModel->markSucceeded(
+                    (int) $payment['id'],
+                    $result['last4'],
+                    $result['raw_data']
+                );
+
+                if ($orderUpdated && $paymentUpdated) {
+                    $this->db->commit();
+                    $this->json(['ok' => true, 'message' => 'Payment successful.']);
+                }
+
+                $this->db->rollBack();
+            } catch (Throwable $e) {
+                if ($this->db->inTransaction()) {
+                    $this->db->rollBack();
+                }
+                error_log('Payment state update failed: ' . $e->getMessage());
+                $this->json(['ok' => false, 'message' => 'Could not save payment status.'], 500);
+            }
+
+            $latestPayment = $this->paymentModel->getByTransactionId($intentId);
+            $latestOrder = $this->orderModel->getById((int) $payment['order_id']);
+            if (
+                ($latestPayment['status'] ?? '') === 'succeeded' &&
+                ($latestOrder['status'] ?? '') === 'paid'
+            ) {
+                $this->json(['ok' => true, 'message' => 'Payment successful.']);
+            }
+
+            $this->json(['ok' => false, 'message' => 'Payment status changed. Please refresh and try again.'], 409);
         }
 
         if (in_array($result['status'] ?? '', ['canceled', 'requires_payment_method'], true)) {

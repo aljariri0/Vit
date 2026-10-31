@@ -282,6 +282,7 @@ $products = array_values(array_filter(
             $stmt = $this->pdo->query("
         SELECT product_id, AVG(star_rating) AS avg_rating
         FROM reviews
+        WHERE status = 'approved'
         GROUP BY product_id
     ");
 

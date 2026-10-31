@@ -2,14 +2,17 @@
 
 require_once __DIR__ . '/../../Models/Review.php';
 require_once __DIR__ . '/../BadWordFilter.php';
+require_once __DIR__ . '/../Controllers/Controller.php';
 
-class ReviewsController
+class ReviewsController extends Controller
 {
     private Review $reviewModel;
     private BadWordFilter $badWordFilter;
 
-    public function __construct(PDO $pdo)
+    public function __construct(?PDO $pdo = null)
     {
+        parent::__construct();
+        $pdo ??= (new Database())->connect();
         $this->reviewModel = new Review($pdo);
         $this->badWordFilter = new BadWordFilter();
     }
@@ -21,7 +24,11 @@ class ReviewsController
             exit('Method Not Allowed');
         }
 
-        $productId = (int) ($_POST['product_id'] ?? 0);
+        $productId = filter_var(
+            $_POST['product_id'] ?? null,
+            FILTER_VALIDATE_INT,
+            ['options' => ['min_range' => 1]]
+        );
         $userId = 0;
 
         if (session_status() === PHP_SESSION_NONE) {
@@ -31,18 +38,31 @@ class ReviewsController
         if (($_SESSION['role'] ?? '') === 'user') {
             $userId = (int) ($_SESSION['id'] ?? 0);
         }
-        $starRating = (int) ($_POST['star_rating'] ?? 0);
-        $comment = trim($_POST['comment'] ?? '');
-        $image = null;
-
-        if ($productId <= 0 || $userId <= 0 || $starRating < 1 || $starRating > 5) {
+        $starRating = filter_var(
+            $_POST['star_rating'] ?? null,
+            FILTER_VALIDATE_INT,
+            ['options' => ['min_range' => 1, 'max_range' => 5]]
+        );
+        $commentInput = $_POST['comment'] ?? '';
+        if (!is_string($commentInput)) {
             http_response_code(400);
             exit('Invalid review data');
+        }
+        $comment = trim($commentInput);
+        $image = null;
+
+        if ($productId === false || $userId <= 0 || $starRating === false) {
+            http_response_code(400);
+            exit('Invalid review data');
+        }
+        if ($this->reviewModel->isUserBlockedFromRating($userId)) {
+            http_response_code(403);
+            exit('You cannot submit ratings.');
         }
 
         $hasBadWords = $this->badWordFilter->containsBadWords($comment);
 
-        $status = $hasBadWords ? 'pending' : 'approved';
+        $status = $hasBadWords ? 'pending' : null;
 
         $this->reviewModel->create(
             $productId,
@@ -52,16 +72,25 @@ class ReviewsController
             $image,
             $status
         );
-        header('Location: /Vit/public/');
-        exit;
+        $this->json(['ok' => true, 'message' => 'Review received.'], 201);
     }
 
 
     public function index()
     {
         $this->requireAdmin();
-
-        return $this->reviewModel->getPendingReviews();
+        $_SESSION['review_csrf'] ??= bin2hex(random_bytes(32));
+        $reviews = $this->reviewModel->getPendingReviews();
+        $this->view('layout', [
+            'page_view' => 'admin/reviews/index',
+            'reviews' => $reviews,
+            'csrf_token' => $_SESSION['review_csrf'],
+            'base_path' => rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/'),
+            'cart_count' => 0,
+            'user' => ['name' => $_SESSION['name'] ?? 'Admin'],
+            'is_admin' => true,
+            'title' => 'Reviews',
+        ]);
     }
 
     public function approve()
@@ -72,10 +101,11 @@ class ReviewsController
             http_response_code(405);
             exit('Method Not Allowed');
         }
+        $this->validateCsrf();
 
-        $id = (int) ($_POST['review_id'] ?? 0);
+        $id = filter_var($_POST['review_id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
 
-        if ($id <= 0) {
+        if ($id === false) {
             http_response_code(400);
             exit('Invalid review ID');
         }
@@ -91,8 +121,7 @@ class ReviewsController
             exit('Pending review not found');
         }
 
-        header('Location: /Vit/public/');
-        exit;
+        $this->redirect($this->adminReviewsUrl());
     }
 
     public function reject()
@@ -103,10 +132,11 @@ class ReviewsController
             http_response_code(405);
             exit('Method Not Allowed');
         }
+        $this->validateCsrf();
 
-        $id = (int) ($_POST['review_id'] ?? 0);
+        $id = filter_var($_POST['review_id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
 
-        if ($id <= 0) {
+        if ($id === false) {
             http_response_code(400);
             exit('Invalid review ID');
         }
@@ -122,10 +152,22 @@ class ReviewsController
             exit('Pending review not found');
         }
 
-        header('Location: /Vit/public/');
-        exit;
+        $this->redirect($this->adminReviewsUrl());
     }
 
+    private function validateCsrf(): void
+    {
+        if (!hash_equals($_SESSION['review_csrf'] ?? '', (string) ($_POST['csrf_token'] ?? ''))) {
+            http_response_code(403);
+            exit('Invalid request');
+        }
+    }
+
+    private function adminReviewsUrl(): string
+    {
+        $base = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/');
+        return $base . '/admin/reviews';
+    }
 
     private function requireAdmin(): int
     {

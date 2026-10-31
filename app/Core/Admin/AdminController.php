@@ -13,6 +13,7 @@ class AdminController
 
     public function getUsers(string $search = ""): array
     {
+        $this->requireAdmin();
         $search = trim($search);
 
         if ($search === "") {
@@ -23,6 +24,7 @@ class AdminController
     }
 public function getUserDetails(int $id): array|false
 {
+    $this->requireAdmin();
     $user = $this->userModel->getUserById($id);
 
     if ($user === false) {
@@ -42,10 +44,23 @@ public function setUserCommentBlock(
     bool $isBlocked
 ): bool
 {
+    $this->requireAdmin();
     return $this->userModel->setCommentBlock(
         $userId,
         $isBlocked
     );
+}
+
+private function requireAdmin(): void
+{
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+
+    if (($_SESSION['role'] ?? '') !== 'admin') {
+        http_response_code(403);
+        throw new RuntimeException('Admin access is required.');
+    }
 }
 }
  

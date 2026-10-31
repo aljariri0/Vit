@@ -6,26 +6,41 @@ $escape = static fn ($value) => htmlspecialchars((string) $value, ENT_QUOTES, 'U
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Checkout | Vitemines</title>
+    <title>Secure checkout | Shifa</title>
     <script src="https://js.stripe.com/v3/"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="<?= $escape($base_path) ?>/assets/css/shifa.css">
     <style>
-        body { margin: 0; padding: 2rem 1rem; background: #f5f7f5; color: #17251d; font: 16px system-ui, sans-serif; }
-        main { max-width: 560px; margin: 3rem auto; padding: 2rem; background: white; border-radius: 14px; box-shadow: 0 8px 28px #163d2512; }
-        h1 { margin-top: 0; } #payment-element { margin: 1.5rem 0; }
-        button { width: 100%; padding: .85rem; border: 0; border-radius: 8px; background: #15803d; color: white; font: inherit; font-weight: 650; cursor: pointer; }
-        button:disabled { opacity: .6; cursor: wait; } #message { min-height: 1.5em; color: #b42318; }
+        body { min-height: 100vh; display:grid; place-items:center; padding: 28px; background: radial-gradient(ellipse at 20% 12%, #e4eadb, transparent 43%), var(--cream); }
+        .checkout-card { width:min(100%,600px); padding:clamp(24px,5vw,48px); background:#fbfbf8; border:1px solid var(--line); box-shadow:0 24px 65px #1b352312; }
+        .checkout-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:42px; }
+        .checkout-head a:last-child { font-size:10px; color:#73836c; }
+        .checkout-kicker { color:#829775; font-size:9px; letter-spacing:1.7px; font-weight:700; }
+        .checkout-card h1 { font:500 clamp(35px,6vw,48px)/1.06 Georgia,serif; color:var(--forest); margin:9px 0 12px; letter-spacing:-1.5px; }
+        .checkout-subtitle { color:#788278; font-size:11px; }
+        .checkout-total { display:flex; justify-content:space-between; align-items:center; margin:27px 0; padding:18px 0; border-block:1px solid var(--line); font-size:11px; color:#748072; }
+        .checkout-total strong { font:500 22px Georgia,serif; color:var(--forest); }
+        #payment-element { margin:1.5rem 0; }
+        #payment-form button { width:100%; height:48px; border:0; border-radius:30px; background:var(--forest); color:white; font:600 11px var(--sans); cursor:pointer; transition:.2s; }
+        #payment-form button:hover { background:#1a3b31; transform:translateY(-1px); }
+        #payment-form button:disabled { opacity:.6; cursor:wait; }
+        #message { min-height:1.5em; color:#a14e3e; font-size:11px; }
+        .secure-note { text-align:center; font-size:9px; color:#8a9487; margin:14px 0 0; }
     </style>
 </head>
 <body>
-<main>
-    <h1>Secure checkout</h1>
-    <p>Order #<?= $escape($order['id']) ?></p>
-    <p><strong>Total: <?= $escape(number_format((float) $order['total'], 2)) ?> <?= $escape($currency) ?></strong></p>
+<main class="checkout-card">
+    <div class="checkout-head"><a class="brand" href="<?= $escape($base_path) ?>/"><span class="brand-mark">✳</span><span>shifa<span class="brand-dot">.</span><small>WELLNESS, YOUR WAY</small></span></a><a href="<?= $escape($base_path) ?>/cart">← Your bag</a></div>
+    <p class="checkout-kicker">ONE LAST LITTLE STEP</p><h1>Checkout, with care.</h1>
+    <p class="checkout-subtitle">Order #<?= $escape($order['id']) ?> · Your payment is encrypted and secure.</p>
+    <div class="checkout-total"><span>Order total</span><strong><?= $escape(number_format((float) $order['total'], 2)) ?> <?= $escape($currency) ?></strong></div>
     <form id="payment-form">
         <div id="payment-element"></div>
         <button id="submit" type="submit">Pay securely</button>
         <p id="message" role="alert" aria-live="polite"></p>
     </form>
+    <p class="secure-note">✳ &nbsp; Secure card payment, powered by Stripe</p>
 </main>
 <script>
     const stripe = Stripe(<?= json_encode($stripe_pub_key, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>);

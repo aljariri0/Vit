@@ -1,33 +1,19 @@
 <?php
 
 require_once __DIR__ . '/OrderItem.php';
+require_once __DIR__ . '/../Core/Shipping/ShippingCalculator.php';
 
 class Order
 {
     protected PDO $db;
     protected OrderItem $orderItem;
-
-    protected array $deliveryFees = [
-        'Amman' => 2.00,
-        'Salt' => 2.00,
-        'Zarqa' => 2.00,
-
-        'Madaba' => 3.00,
-        'Irbid' => 3.00,
-        'Ajloun' => 3.00,
-        'Jerash' => 3.00,
-        'Mafraq' => 3.00,
-
-        'Aqaba' => 4.00,
-        'Ma’an' => 4.00,
-        'Karak' => 4.00,
-        'Tafilah' => 4.00
-    ];
+    protected ShippingCalculator $shippingCalculator;
 
     public function __construct(PDO $db)
     {
         $this->db = $db;
         $this->orderItem = new OrderItem($db);
+        $this->shippingCalculator = new ShippingCalculator();
     }
 
     public function getById(int $orderId): ?array
@@ -64,11 +50,7 @@ class Order
             return 0.00;
         }
 
-        if (!isset($this->deliveryFees[$city])) {
-            throw new InvalidArgumentException('Invalid delivery city');
-        }
-
-        return $this->deliveryFees[$city];
+        return $this->shippingCalculator->calculate($city);
     }
 
     protected function getProduct(int $productId): ?array

@@ -1,11 +1,22 @@
 <?php
 
+require_once __DIR__ . '/Env.php';
+
 class Database
 {
-    private $servername = "localhost";
-    private $username = "root";
-    private $password = "";
-    private $dbname = "vitemines";
+    private $servername;
+    private $username;
+    private $password;
+    private $dbname;
+
+    public function __construct()
+    {
+        Env::load();
+        $this->servername = getenv('DB_HOST') ?: 'localhost';
+        $this->username = getenv('DB_USER') ?: 'root';
+        $this->password = getenv('DB_PASSWORD') ?: '';
+        $this->dbname = getenv('DB_NAME') ?: 'vitemines';
+    }
 
     public function connect()
     {
@@ -24,7 +35,9 @@ class Database
             return $pdo;
 
         } catch (PDOException $e) {
-            die("Connection failed: " . $e->getMessage());
+            error_log('Database connection failed: ' . $e->getMessage());
+            http_response_code(503);
+            exit('The Shifa store is temporarily unavailable. Check the database configuration.');
         }
     }
 }

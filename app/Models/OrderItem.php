@@ -44,7 +44,7 @@ class OrderItem
             ':product_name' => $productName,
             ':size' => $size,
             ':quantity' => $quantity,
-            ':order_total' => $unitPrice
+            ':order_total' => round($unitPrice * $quantity, 2)
         ]);
     }
 

@@ -238,10 +238,9 @@ CREATE TABLE payments (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     order_id INT UNSIGNED NOT NULL,
 
-    method ENUM('visa', 'paypal', 'cash_on_delivery') NOT NULL,
+    method ENUM('card', 'paypal', 'cash_on_delivery') NOT NULL,
 
     provider_transaction_id VARCHAR(120) NULL UNIQUE,
-    gateway_metadata JSON NULL,
     amount DECIMAL(10,2) NOT NULL,
     card_last4 CHAR(4) NULL,
     paid_at DATETIME NULL,
@@ -298,3 +297,7 @@ ALTER TABLE payments
     ADD COLUMN gateway_metadata JSON NULL AFTER provider_transaction_id;
 
 
+ALTER TABLE reviews
+ADD COLUMN status ENUM('pending', 'approved', 'rejected')
+NOT NULL DEFAULT 'approved'
+AFTER comment;

@@ -22,6 +22,15 @@ class Review
 
         return (int) $status === 1;
     }
+    public function isUserBlockedFromRating(int $userId): bool
+    {
+        $stmt = $this->db->prepare(
+            'SELECT is_blocked_from_rating FROM users WHERE id = ?'
+        );
+        $stmt->execute([$userId]);
+
+        return (int) $stmt->fetchColumn() === 1;
+    }
     public function getAll(): array
     {
         $sql = "SELECT 
@@ -121,26 +130,33 @@ class Review
         int $starRating,
         ?string $comment = null,
         ?string $image = null,
-        string $status = 'pending'
+        ?string $status = null
     ): int {
+        if ($starRating < 1 || $starRating > 5) {
+            throw new InvalidArgumentException('Rating must be from 1 to 5.');
+        }
+        if ($status !== null && !in_array($status, ['pending', 'approved', 'rejected'], true)) {
+            throw new InvalidArgumentException('Invalid review status.');
+        }
+        if ($this->isUserBlockedFromRating($userId)) {
+            throw new InvalidArgumentException('This user cannot submit ratings.');
+        }
+
         if ($this->isUserBlockedFromCommenting($userId)) {
             $comment = null;
         }
 
-        $sql = "INSERT INTO reviews 
-                (product_id, user_id, star_rating, comment, image)
-                VALUES (?, ?, ?, ?, ?)";
+        $columns = 'product_id, user_id, star_rating, comment, image';
+        $values = '?, ?, ?, ?, ?';
+        $params = [$productId, $userId, $starRating, $comment, $image];
+        if ($status !== null) {
+            $columns .= ', status';
+            $values .= ', ?';
+            $params[] = $status;
+        }
 
-        $stmt = $this->db->prepare($sql);
-
-        $stmt->execute([
-            $productId,
-            $userId,
-            $starRating,
-            $comment,
-            $image,
-            $status
-        ]);
+        $stmt = $this->db->prepare("INSERT INTO reviews ($columns) VALUES ($values)");
+        $stmt->execute($params);
 
         return (int) $this->db->lastInsertId();
     }
@@ -178,7 +194,7 @@ class Review
     }
 
 
-    public function updateStatus(int $id, string $status): bool
+    public function updateStatus(int $id, string $status, ?int $adminId = null): bool
     {
         $allowedStatuses = ['approved', 'rejected'];
 
@@ -187,11 +203,11 @@ class Review
         }
 
         $sql = "UPDATE reviews
-            SET status = ?
+            SET status = ?, moderated_by_admin_id = ?
             WHERE id = ? AND status = 'pending'";
 
         $stmt = $this->db->prepare($sql);
-        $stmt->execute([$status, $id]);
+        $stmt->execute([$status, $adminId, $id]);
 
         return $stmt->rowCount() > 0;
     }

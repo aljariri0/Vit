@@ -16,7 +16,7 @@ class AdminOrderController
             session_start();
         }
 
-        if (!isset($_SESSION['id']) || $_SESSION['role'] !== 'admin') {
+        if (!isset($_SESSION['id']) || ($_SESSION['role'] ?? '') !== 'admin') {
             http_response_code(401);
             return false;
         }
