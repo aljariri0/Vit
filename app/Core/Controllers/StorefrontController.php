@@ -20,7 +20,7 @@ class StorefrontController extends Controller
 
     public function home(): void
     {
-        $bestSellers = $this->db->query("SELECT p.*, SUM(oi.quantity) AS units_sold
+        $bestSellers = $this->db->query("SELECT p.*, (SELECT c.name FROM categories c WHERE c.id = p.category_id) AS category_name, SUM(oi.quantity) AS units_sold
             FROM order_items oi
             INNER JOIN orders o ON o.id = oi.order_id
             INNER JOIN products p ON p.id = oi.product_id
@@ -30,7 +30,7 @@ class StorefrontController extends Controller
             LIMIT 3")->fetchAll();
         $hasSalesData = (bool) $bestSellers;
         if (!$hasSalesData) {
-            $bestSellers = $this->db->query('SELECT p.*, 0 AS units_sold FROM products p WHERE p.is_active = 1 ORDER BY p.id DESC LIMIT 3')->fetchAll();
+            $bestSellers = $this->db->query('SELECT p.*, c.name AS category_name, 0 AS units_sold FROM products p LEFT JOIN categories c ON c.id = p.category_id WHERE p.is_active = 1 ORDER BY p.id DESC LIMIT 3')->fetchAll();
         }
         $bestSellers = array_map([$this, 'normalizeProduct'], $bestSellers);
         $categories = $this->db->query('SELECT * FROM categories WHERE is_active = 1 ORDER BY name LIMIT 6')->fetchAll();
@@ -42,7 +42,7 @@ class StorefrontController extends Controller
         $search = trim((string) ($_GET['q'] ?? ''));
         $category = filter_var($_GET['category'] ?? null, FILTER_VALIDATE_INT) ?: 0;
         $brandFilter = new BrandFilter($this->db, $_GET['brand'] ?? null);
-        $sql = 'SELECT p.* FROM products p WHERE p.is_active = 1';
+        $sql = 'SELECT p.*, c.name AS category_name FROM products p LEFT JOIN categories c ON c.id = p.category_id WHERE p.is_active = 1';
         $params = [];
         if ($search !== '') {
             $sql .= ' AND (p.name LIKE ? OR p.description LIKE ? OR p.ingredients LIKE ?)';
@@ -70,7 +70,7 @@ class StorefrontController extends Controller
     public function product(): void
     {
         $id = filter_var($_GET['id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
-        $stmt = $this->db->prepare('SELECT * FROM products WHERE id = ? AND is_active = 1');
+        $stmt = $this->db->prepare('SELECT p.*, c.name AS category_name FROM products p LEFT JOIN categories c ON c.id = p.category_id WHERE p.id = ? AND p.is_active = 1');
         $stmt->execute([$id ?: 0]);
         $product = $stmt->fetch();
         if (!$product) {
@@ -104,6 +104,21 @@ class StorefrontController extends Controller
             $total += $line;
             $items[] = ['product' => $product, 'size' => (string) $entry['size'], 'quantity' => (int) $entry['quantity'], 'price' => $price, 'subtotal' => $line];
         }
+        if (($_GET['format'] ?? '') === 'json') {
+            $this->json([
+                'items' => array_map(static fn ($item) => [
+                    'id' => (int) $item['product']['id'],
+                    'name' => (string) $item['product']['name'],
+                    'image_url' => (string) $item['product']['image_url'],
+                    'size' => $item['size'],
+                    'quantity' => $item['quantity'],
+                    'price' => $item['price'],
+                    'subtotal' => $item['subtotal'],
+                ], $items),
+                'total' => $total,
+                'count' => $this->cartModel->getCartCount(),
+            ]);
+        }
         $this->render('store/cart', ['items' => $items, 'total' => $total, 'title' => 'Your bag']);
     }
 
@@ -112,8 +127,14 @@ class StorefrontController extends Controller
         $this->verifyStoreCsrf();
         try {
             $this->cartModel->addToCart($this->db, (int) ($_POST['product_id'] ?? 0), max(1, (int) ($_POST['quantity'] ?? 1)), trim((string) ($_POST['size'] ?? '')));
+            if (str_contains($_SERVER['HTTP_ACCEPT'] ?? '', 'application/json')) {
+                $this->json(['ok' => true, 'count' => $this->cartModel->getCartCount(), 'message' => 'Added to your bag.']);
+            }
             $_SESSION['flash'] = 'Added to your bag.';
         } catch (Throwable $e) {
+            if (str_contains($_SERVER['HTTP_ACCEPT'] ?? '', 'application/json')) {
+                $this->json(['ok' => false, 'message' => $e->getMessage()], 422);
+            }
             $_SESSION['flash'] = $e->getMessage();
         }
         $this->redirect($this->basePath() . '/cart');
@@ -122,9 +143,12 @@ class StorefrontController extends Controller
     public function updateCart(): void
     {
         $this->verifyStoreCsrf();
+        $isAjax = str_contains($_SERVER['HTTP_ACCEPT'] ?? '', 'application/json');
         try {
             $this->cartModel->updateCartQuantity($this->db, (int) ($_POST['product_id'] ?? 0), max(1, (int) ($_POST['quantity'] ?? 1)), trim((string) ($_POST['size'] ?? '')));
+            if ($isAjax) $this->json(['ok' => true, 'count' => $this->cartModel->getCartCount()]);
         } catch (Throwable $e) {
+            if ($isAjax) $this->json(['ok' => false, 'message' => $e->getMessage()], 422);
             $_SESSION['flash'] = $e->getMessage();
         }
         $this->redirect($this->basePath() . '/cart');
@@ -133,9 +157,12 @@ class StorefrontController extends Controller
     public function removeFromCart(): void
     {
         $this->verifyStoreCsrf();
+        $isAjax = str_contains($_SERVER['HTTP_ACCEPT'] ?? '', 'application/json');
         try {
             $this->cartModel->removeFromCart((int) ($_POST['product_id'] ?? 0), trim((string) ($_POST['size'] ?? '')));
+            if ($isAjax) $this->json(['ok' => true, 'count' => $this->cartModel->getCartCount()]);
         } catch (Throwable $e) {
+            if ($isAjax) $this->json(['ok' => false, 'message' => $e->getMessage()], 422);
             $_SESSION['flash'] = $e->getMessage();
         }
         $this->redirect($this->basePath() . '/cart');
@@ -152,10 +179,12 @@ class StorefrontController extends Controller
             $decoded = json_decode((string) ($product[$field] ?? ''), true);
             $product[$field] = is_array($decoded) ? $decoded : [];
         }
-        $storedImage = (string) ($product['image'][0] ?? '');
-        $product['image_url'] = str_starts_with($storedImage, '/assets/')
-            ? $this->basePath() . $storedImage
-            : $storedImage;
+        $product['image_urls'] = array_map(function ($storedImage): string {
+            $storedImage = (string) $storedImage;
+            return str_starts_with($storedImage, '/assets/') ? $this->basePath() . $storedImage : $storedImage;
+        }, $product['image']);
+        $product['image_url'] = (string) ($product['image_urls'][0] ?? '');
+        $product['image_url_secondary'] = (string) ($product['image_urls'][1] ?? '');
         return $product;
     }
 

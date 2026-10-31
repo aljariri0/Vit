@@ -1,31 +1,28 @@
 <?php
 
+require_once __DIR__ . '/Controller.php';
 require_once __DIR__ . '/../Database.php';
 require_once __DIR__ . '/../../Models/Profile.php';
 require_once __DIR__ . '/CartController.php';
 
-class ProfileController
+class ProfileController extends Controller
 {
     private PDO $db;
     private Profile $profileModel;
 
     public function __construct()
     {
+        parent::__construct();
         $database = new Database();
         $this->db = $database->connect();
         $this->profileModel = new Profile($this->db);
     }
     public function index(): void
     {
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
-        }
-
         $isAdmin = ($_SESSION['role'] ?? '') === 'admin';
         $loggedInUserId = $_SESSION['id'] ?? null;
         if (!$isAdmin && ($_SESSION['role'] ?? '') !== 'user') {
-            http_response_code(401);
-            exit('Sign in to view your profile.');
+            $this->redirect($this->basePath() . '/login');
         }
         if ($isAdmin && isset($_GET['user_id'])) {
             $targetUserId = (int) $_GET['user_id'];
@@ -41,7 +38,7 @@ class ProfileController
 
         if (!$user) {
             http_response_code(404);
-            die("User noot found.");
+            exit('Profile not found.');
         }
         $isOwner = ($loggedInUserId !== null && (int)$loggedInUserId === (int)$targetUserId);
         $_SESSION['profile_csrf'] ??= bin2hex(random_bytes(32));
@@ -51,17 +48,15 @@ class ProfileController
             'page_view' => 'profile',
             'title' => 'Your profile',
             'profile' => $user,
+            'isOwner' => $isOwner,
             'is_admin' => $isAdmin,
             'cart_count' => $cart->getCartCount(),
-            'base_path' => rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/'),
+            'base_path' => $this->basePath(),
+            'user' => ($_SESSION['role'] ?? '') === 'user' ? ['name' => $_SESSION['name'] ?? 'Account'] : null,
         ]);
     }
     public function changePassword(): void
     {
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
-        }
-
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             http_response_code(405);
             exit('Method Not Allowed');
@@ -108,10 +103,6 @@ class ProfileController
     }
     public function update(): void
     {
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
-        }
-
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             http_response_code(405);
             exit('Method Not Allowed');
@@ -152,6 +143,7 @@ class ProfileController
             $address !== '' ? $address : null,
             $city !== '' ? $city : null
         );
+        $_SESSION['name'] = $name;
 
         $this->redirect($this->profileUrl('success=1'));
         exit;
@@ -163,9 +155,8 @@ class ProfileController
         return $base . '/profile' . ($query !== '' ? '?' . $query : '');
     }
 
-    private function redirect(string $url): void
+    private function basePath(): string
     {
-        header('Location: ' . $url);
-        exit;
+        return rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/');
     }
 }

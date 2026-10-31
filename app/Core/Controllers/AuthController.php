@@ -12,20 +12,19 @@ class AuthController
     public function register(string $name, string $email, string $password): array
     {
         $name = trim($name);
-        $email = trim($email);
-        $password = trim($password);
+        $email = strtolower(trim($email));
 
-        if (empty($name) || strlen($name) > 100 || empty($email) || empty($password)) {
+        if ($name === '' || strlen($name) > 100 || $email === '' || $password === '') {
             return [
                 'status' => false,
-                'message' => 'All fields are required !'
+                'message' => 'Complete all fields.'
             ];
         }
 
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        if (strlen($email) > 150 || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
             return [
                 'status' => false,
-                'message' => 'Enter a valid email address !'
+                'message' => 'Enter a valid email address under 150 characters.'
             ];
         }
         if (strlen($password) < 8) {
@@ -44,13 +43,21 @@ class AuthController
             ];
         }
         $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-        $insertStmt = $this->db->prepare("INSERT INTO users (name, email, password_hash, created_at) VALUES (?, ?, ?, NOW())");
-        $isInserted = $insertStmt->execute([$name, $email, $hashedPassword]);
+        try {
+            $insertStmt = $this->db->prepare('INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)');
+            $isInserted = $insertStmt->execute([$name, $email, $hashedPassword]);
+        } catch (PDOException $e) {
+            if (($e->errorInfo[0] ?? $e->getCode()) === '23000') {
+                return ['status' => false, 'message' => 'Email is already registered.'];
+            }
+            error_log('Account registration failed: ' . $e->getMessage());
+            return ['status' => false, 'message' => 'Could not create your account. Please try again.'];
+        }
 
         if ($isInserted) {
             return [
                 'status' => true,
-                'message' => 'Account created successfully !'
+                'message' => 'Account created successfully.'
             ];
         }
 
@@ -61,8 +68,7 @@ class AuthController
     }
     public function login(string $email, string $password): array
     {
-        $email = trim($email);
-        $password = trim($password);
+        $email = strtolower(trim($email));
 
         if (empty($email) || empty($password)) {
             return [
