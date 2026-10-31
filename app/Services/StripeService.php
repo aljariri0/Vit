@@ -1,11 +1,9 @@
 <?php
-// app/Core/Services/StripeService.php
 
-// 1. Load the manually downloaded Stripe SDK
-require_once __DIR__ . '/../../Libraries/stripe-php/init.php';
+require_once __DIR__ . '/../Libraries/stripe-php-22.1.0/init.php';
 
 // 2. Load config
-$config = require __DIR__ . '/../config.php';
+$config = require __DIR__ . '/../Core/config.php';
 
 class StripeService
 {
