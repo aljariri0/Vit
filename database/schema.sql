@@ -294,3 +294,7 @@ CREATE TABLE ai_assistant_requests (
         ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
+ALTER TABLE payments
+    ADD COLUMN gateway_metadata JSON NULL AFTER provider_transaction_id;
+
+
