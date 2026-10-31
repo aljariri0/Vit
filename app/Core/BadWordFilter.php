@@ -1,10 +1,5 @@
 <?php
 
-require_once __DIR__ . '/../../vendor/autoload.php';
-
-use ConsoleTVs\Profanity\Builder;
-use CleanSpeak\CleanSpeak;
-
 class BadWordFilter
 {
 
@@ -44,19 +39,13 @@ class BadWordFilter
             return false;
         }
 
-        $consoleDetected = !Builder::blocker(
-            $comment,
-            languages: ['en']
-        )->clean();
+        foreach ($this->customWords as $word) {
+            $pattern = '/(?<![\p{L}\p{N}])' . preg_quote($word, '/') . '(?![\p{L}\p{N}])/iu';
+            if (preg_match($pattern, $comment) === 1) {
+                return true;
+            }
+        }
 
-        $cleanSpeak = new CleanSpeak();
-
-        $cleanSpeak->setWords($this->customWords);
-        $cleanSpeak->setStrictMode(false);
-        $cleanSpeak->setText($comment);
-
-        $cleanSpeakDetected = !$cleanSpeak->isClean();
-
-        return $consoleDetected || $cleanSpeakDetected;
+        return false;
     }
 }

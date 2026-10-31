@@ -4,12 +4,11 @@ require_once __DIR__ . '/../Core/Database.php';
 
 class Category
 {
-    private $pdo;
+    private PDO $pdo;
 
-    public function __construct()
+    public function __construct(?PDO $pdo = null)
     {
-        $database = new Database();
-        $this->pdo = $database->connect();
+        $this->pdo = $pdo ?? (new Database())->connect();
     }
     public function create($name, $description = null, $image = null, $isActive = 1, $adminId = null)
     {

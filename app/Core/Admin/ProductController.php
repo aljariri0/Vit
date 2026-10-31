@@ -12,6 +12,8 @@ class ProductController
     }
     public function index()
     {
+        $this->requireAdmin();
+
         try {
             $products = $this->productModel->getAllProducts();
 
@@ -30,6 +32,8 @@ class ProductController
     }
     public function show($id)
     {
+        $this->requireAdmin();
+
         try {
             $product = $this->productModel->getProductById($id);
 
@@ -65,6 +69,8 @@ class ProductController
         $image,
         $brand_id = null
     ) {
+        $this->requireAdmin();
+
         try {
             $product = $this->productModel->createProduct(
                 $category_id,
@@ -96,6 +102,8 @@ class ProductController
     }
     public function update(
         $id,
+        $category_id,
+        $brand_id,
         $name,
         $description,
         $ingredients,
@@ -107,6 +115,8 @@ class ProductController
         $weight,
         $image
     ) {
+        $this->requireAdmin();
+
         try {
             $product = $this->productModel->getProductById($id);
 
@@ -122,6 +132,8 @@ class ProductController
 
             return $this->productModel->updateProduct(
                 $id,
+                $category_id,
+                $brand_id,
                 $name,
                 $description,
                 $ingredients,
@@ -142,6 +154,8 @@ class ProductController
     }
     public function delete($id)
     {
+        $this->requireAdmin();
+
         try {
             $product = $this->productModel->getProductById($id);
 
@@ -161,6 +175,18 @@ class ProductController
             http_response_code(500);
             error_log($e->getMessage());
             return false;
+        }
+    }
+
+    private function requireAdmin(): void
+    {
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+
+        if (($_SESSION['role'] ?? '') !== 'admin') {
+            http_response_code(403);
+            throw new RuntimeException('Admin access is required.');
         }
     }
 }
