@@ -21,10 +21,6 @@ class AdminController
 
         return $this->userModel->searchUsers($search);
     }
-//     public function getUserDetails(int $id): array|false
-// {
-//     return $this->userModel->getUserById($id);
-// }
 public function getUserDetails(int $id): array|false
 {
     $user = $this->userModel->getUserById($id);

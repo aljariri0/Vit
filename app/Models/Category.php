@@ -1,6 +1,6 @@
 <?php
 
-require_once __DIR__ . 'app/Core/Database.php';
+require_once __DIR__ . '/../Core/Database.php';
 
 class Category
 {
@@ -11,9 +11,6 @@ class Category
         $database = new Database();
         $this->pdo = $database->connect();
     }
-
-
-    // CREATE
     public function create($name, $description = null, $image = null, $isActive = 1, $adminId = null)
     {
         $stmt = $this->pdo->prepare(
@@ -25,9 +22,6 @@ class Category
 
         return $this->pdo->lastInsertId();
     }
-
-
-    // READ ALL
     public function getAll()
     {
         $stmt = $this->pdo->query(
@@ -36,9 +30,6 @@ class Category
 
         return $stmt->fetchAll();
     }
-
-
-    // READ ONE
     public function getById($id)
     {
         $stmt = $this->pdo->prepare(
@@ -49,9 +40,6 @@ class Category
 
         return $stmt->fetch();
     }
-
-
-    // UPDATE
     public function update($id, $name, $description = null, $image = null, $isActive = 1)
     {
         $stmt = $this->pdo->prepare(
@@ -62,9 +50,6 @@ class Category
 
         return $stmt->execute([$name, $description, $image, $isActive, $id]);
     }
-
-
-    // DELETE
     public function delete($id)
     {
         $check = $this->pdo->prepare(

@@ -8,8 +8,6 @@ class ProductModel
     {
         $this->pdo = $pdo;
     }
-
-    // Get all products
     public function getAllProducts(): array
     {
         try {
@@ -24,8 +22,6 @@ class ProductModel
             throw $e;
         }
     }
-
-    // Get one product by ID
     public function getProductById(int $id): ?array
     {
         try {
@@ -46,8 +42,6 @@ class ProductModel
             throw $e;
         }
     }
-
-    // Create product
     public function createProduct(
         int $category_id,
         string $name,
@@ -123,8 +117,6 @@ class ProductModel
             throw $e;
         }
     }
-
-    // Update product
     public function updateProduct(
         int $id,
         int $category_id,
@@ -186,8 +178,6 @@ class ProductModel
             throw $e;
         }
     }
-
-    // Delete product by ID
     public function deleteProductById(int $id): bool
     {
         try {

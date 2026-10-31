@@ -8,10 +8,10 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
     <style>
         :root {
-            --vite-green: #15803d;      /* iHerb / Protine natural green */
-            --vite-dark: #0f291e;       /* Deep botanical dark green */
-            --vite-cream: #f6f8f5;      /* Soft clean wellness background */
-            --vite-accent: #dcfce7;     /* Soft pill badge green */
+            --vite-green: #15803d;
+            --vite-dark: #0f291e;
+            --vite-cream: #f6f8f5;
+            --vite-accent: #dcfce7;
         }
         body { background-color: var(--vite-cream); color: #1f2937; font-family: 'Segoe UI', system-ui, sans-serif; }
         .bg-vite-dark { background-color: var(--vite-dark); }
