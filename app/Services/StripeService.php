@@ -2,65 +2,74 @@
 
 require_once __DIR__ . '/../Libraries/stripe-php-22.1.0/init.php';
 
-// 2. Load config
-$config = require __DIR__ . '/../Core/config.php';
-
 class StripeService
 {
-    public function __construct()
+    private string $currency;
+
+    public function __construct(?array $config = null)
     {
-        global $config;
-        \Stripe\Stripe::setApiKey($config['stripe_secret_key']);
+        $config ??= require __DIR__ . '/../Core/config.php';
+        $secretKey = trim((string) ($config['stripe_secret_key'] ?? ''));
+
+        if ($secretKey === '' || str_contains($secretKey, 'YourSecretKeyHere')) {
+            throw new RuntimeException('Set STRIPE_SECRET_KEY before accepting payments.');
+        }
+
+        $publishableKey = trim((string) ($config['stripe_publishable_key'] ?? ''));
+        if ($publishableKey === '' || str_contains($publishableKey, 'YourPublishableKeyHere')) {
+            throw new RuntimeException('Set STRIPE_PUBLISHABLE_KEY before accepting payments.');
+        }
+
+        $this->currency = strtolower((string) ($config['stripe_currency'] ?? 'jod'));
+        \Stripe\Stripe::setApiKey($secretKey);
     }
 
-    /**
-     * Create a PaymentIntent (tells Stripe to expect a payment)
-     */
-    public function createPaymentIntent($orderId, $amount)
+    public function createPaymentIntent(int $orderId, float $amount): array
     {
-        try {
-            // Stripe requires amount in cents (e.g., $10.00 = 1000)
-            $amountInCents = (int) round($amount * 100);
+        if ($orderId <= 0 || $amount <= 0) {
+            return ['ok' => false, 'message' => 'Invalid order amount.'];
+        }
 
+        try {
             $intent = \Stripe\PaymentIntent::create([
-                'amount'   => $amountInCents,
-                'currency' => 'usd', // Change to your currency (e.g., 'eur', 'gbp')
-                'metadata' => ['order_id' => $orderId],
-                'automatic_payment_methods' => ['enabled' => true],
+                'amount' => (int) round($amount * 100),
+                'currency' => $this->currency,
+                'metadata' => ['order_id' => (string) $orderId],
+                'payment_method_types' => ['card'],
             ]);
 
             return [
-                'ok'            => true,
+                'ok' => true,
                 'client_secret' => $intent->client_secret,
-                'intent_id'     => $intent->id, // This goes into provider_transaction_id
+                'intent_id' => $intent->id,
             ];
-        } catch (\Exception $e) {
-            return ['ok' => false, 'message' => $e->getMessage()];
+        } catch (\Throwable $e) {
+            error_log('Stripe intent creation failed: ' . $e->getMessage());
+            return ['ok' => false, 'message' => 'Could not start the payment. Please try again.'];
         }
     }
 
-    /**
-     * Verify the payment after the frontend confirms it
-     */
-    public function verifyPayment($intentId)
+    public function verifyPayment(string $intentId): array
     {
         try {
-            $intent = \Stripe\PaymentIntent::retrieve($intentId);
-
-            // Extract card details if it was a card payment
-            $last4 = null;
-            if (isset($intent->charges->data[0]->payment_method_details->card)) {
-                $last4 = $intent->charges->data[0]->payment_method_details->card->last4;
-            }
+            $intent = \Stripe\PaymentIntent::retrieve($intentId, ['expand' => ['latest_charge']]);
+            $charge = $intent->latest_charge;
+            $last4 = $charge && isset($charge->payment_method_details->card->last4)
+                ? $charge->payment_method_details->card->last4
+                : null;
 
             return [
-                'ok'         => ($intent->status === 'succeeded'),
-                'status'     => $intent->status,
-                'last4'      => $last4,
-                'raw_data'   => $intent->toArray(), // This full array goes into gateway_metadata
+                'ok' => $intent->status === 'succeeded',
+                'status' => $intent->status,
+                'last4' => $last4,
+                'amount' => (int) $intent->amount,
+                'currency' => strtolower((string) $intent->currency),
+                'order_id' => (string) ($intent->metadata->order_id ?? ''),
+                'raw_data' => $intent->toArray(),
             ];
-        } catch (\Exception $e) {
-            return ['ok' => false, 'message' => $e->getMessage()];
+        } catch (\Throwable $e) {
+            error_log('Stripe verification failed: ' . $e->getMessage());
+            return ['ok' => false, 'status' => 'verification_error'];
         }
     }
 }
