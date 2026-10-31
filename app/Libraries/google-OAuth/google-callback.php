@@ -1,7 +1,8 @@
 <?php
-require_once __DIR__ . '/../app/Core/Database.php';
-require_once __DIR__ . '/../app/Core/google_config.php';
-require_once __DIR__ . '/../app/Core/Controllers/AuthController.php';
+
+require_once __DIR__ . '/../../Core/Database.php';
+require_once __DIR__ . '/../../Core/google_config.php';
+require_once __DIR__ . '/../../Core/Controllers/AuthController.php';
 
 if (!isset($_GET['code'])) {
     header("Location: /Vit/public/login.php");
