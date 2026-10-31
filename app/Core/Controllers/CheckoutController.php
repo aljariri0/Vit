@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/Controller.php';
+require_once __DIR__ . '/../Database.php';
 require_once __DIR__ . '/../../Models/Payment.php';
 require_once __DIR__ . '/../../Models/Order.php';
 require_once __DIR__ . '/../../Services/StripeService.php';
@@ -15,8 +16,9 @@ class CheckoutController extends Controller
     public function __construct()
     {
         parent::__construct();
-        $this->paymentModel = new Payment();
-        $this->orderModel = new Order();
+        $pdo = (new Database())->connect();
+        $this->paymentModel = new Payment($pdo);
+        $this->orderModel = new Order($pdo);
         $this->config = require __DIR__ . '/../config.php';
 
         if ($this->userId() <= 0) {
@@ -82,11 +84,11 @@ class CheckoutController extends Controller
         if (!$order || (int) $order['user_id'] !== $this->userId()) {
             $this->json(['ok' => false, 'message' => 'Payment not found.'], 404);
         }
-        if ($order['status'] !== 'pending') {
-            $this->json(['ok' => false, 'message' => 'This order is no longer pending.'], 409);
-        }
         if ($payment['status'] === 'succeeded') {
             $this->json(['ok' => true, 'message' => 'Payment successful.']);
+        }
+        if ($order['status'] !== 'pending') {
+            $this->json(['ok' => false, 'message' => 'This order is no longer pending.'], 409);
         }
         if ($payment['status'] !== 'pending') {
             $this->json(['ok' => false, 'message' => 'This payment is no longer pending.'], 409);

@@ -30,6 +30,34 @@ class Order
         $this->orderItem = new OrderItem($db);
     }
 
+    public function getById(int $orderId): ?array
+    {
+        if ($orderId <= 0) {
+            return null;
+        }
+
+        $stmt = $this->db->prepare(
+            'SELECT * FROM orders WHERE id = :id LIMIT 1'
+        );
+        $stmt->execute([':id' => $orderId]);
+        $order = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        return $order ?: null;
+    }
+
+    public function updateStatus(int $orderId, string $status): bool
+    {
+        if ($orderId <= 0 || $status !== 'paid') {
+            return false;
+        }
+
+        $stmt = $this->db->prepare(
+            "UPDATE orders SET status = 'paid' WHERE id = :id AND status = 'pending'"
+        );
+
+        return $stmt->execute([':id' => $orderId]) && $stmt->rowCount() === 1;
+    }
+
     protected function calculateShipping(float $subtotal, string $city): float
     {
         if ($subtotal > 50) {
