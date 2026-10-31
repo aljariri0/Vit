@@ -25,19 +25,13 @@ class CartController
 
             session_start();
         }
-
-        // Create cart if it doesn't exist
         if (!isset($_SESSION["cart"])) {
             $_SESSION["cart"] = [];
         }
-
-        // Set expiration time
         if (!isset($_SESSION["cart_expires_at"])) {
             $_SESSION["cart_expires_at"] =
                 time() + self::CART_LIFETIME;
         }
-
-        // Clear cart after 24 hours
         if (time() >= $_SESSION["cart_expires_at"]) {
             $_SESSION["cart"] = [];
 
@@ -62,28 +56,20 @@ class CartController
         $productModel = new ProductModel($pdo);
 
         $product = $productModel->getProductById($productId);
-
-        // 1. Check if product exists
         if (!$product) {
             throw new InvalidArgumentException(
                 "Product not available"
             );
         }
-
-        // 2. Convert sizes JSON to PHP array
         $availableSizes = json_decode(
             $product["sizes"] ?? "[]",
             true
         );
-
-        // 3. Validate sizes data
         if (!is_array($availableSizes)) {
             throw new InvalidArgumentException(
                 "Invalid product sizes"
             );
         }
-
-        // 4. Check selected size
         if (!in_array($size, $availableSizes, true)) {
             throw new InvalidArgumentException(
                 "Selected size is not available"
@@ -96,8 +82,6 @@ class CartController
                 "Product not available"
             );
         }
-
-        // Check whether the product is active
         $stmt = $pdo->prepare(
             "SELECT is_active FROM products WHERE id = :id"
         );
@@ -169,23 +153,11 @@ class CartController
 
 
             $quantity = (int) $cartItem["quantity"];
-
-            // Original price
             $price = (float) $product["price"];
-
-            // Discount percentage
             $discountPercent = (float) ($product["discount_percent"] ?? 0);
-
-            // Calculate discount amount
             $discountAmount = $price * ($discountPercent / 100);
-
-            // Price after discount
             $finalPrice = round($price - $discountAmount, 2);
-
-            // Calculate item subtotal
             $subtotal = $finalPrice * $quantity;
-
-            // Add to cart total
             $total += $subtotal;
 
 
@@ -256,8 +228,6 @@ class CartController
                 $errors[] = "Invalid quantity for product $productId";
                 continue;
             }
-
-            // Combine quantities across sizes
             $quantitiesByProduct[$productId] =
                 ($quantitiesByProduct[$productId] ?? 0) + $quantity;
 
@@ -279,15 +249,11 @@ class CartController
         int $quantity,
         string $size = ""
     ): array {
-
-        // 1. Validate input
         if ($productId <= 0 || $quantity <= 0) {
             throw new InvalidArgumentException(
                 "Invalid product or quantity"
             );
         }
-
-        // 2. Find the product in session cart
         $key = $productId . ":" . $size;
 
         if (!isset($_SESSION["cart"][$key])) {
@@ -295,8 +261,6 @@ class CartController
                 "Product not found in cart"
             );
         }
-
-        // 3. Check available stock
         $stmt = $pdo->prepare(
             "SELECT stock, is_active
          FROM products
@@ -320,11 +284,7 @@ class CartController
                 "Not enough stock"
             );
         }
-
-        // 4. Update quantity in session
         $_SESSION["cart"][$key]["quantity"] = $quantity;
-
-        // 5. Return updated cart
         return $_SESSION["cart"];
     }
 
@@ -332,37 +292,24 @@ class CartController
         int $productId,
         string $size = ""
     ): array {
-
-        // 1. Validate product ID
         if ($productId <= 0) {
             throw new InvalidArgumentException(
                 "Invalid product ID"
             );
         }
-
-        // 2. Create cart item key
         $key = $productId . ":" . $size;
-
-        // 3. Check if item exists
         if (!isset($_SESSION["cart"][$key])) {
             throw new InvalidArgumentException(
                 "Product not found in cart"
             );
         }
-
-        // 4. Remove item from session
         unset($_SESSION["cart"][$key]);
-
-        // 5. Return updated cart
         return $_SESSION["cart"];
     }
 
 public function clearCart(): array
 {
-    // Remove all products from cart
     $_SESSION["cart"] = [];
-
-    // Return empty cart
     return $_SESSION["cart"];
 }
 

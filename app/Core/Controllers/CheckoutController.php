@@ -1,107 +1,126 @@
 <?php
-// app/Core/Controllers/CheckoutController.php
 
-require_once __DIR__ . '/Controller.php'; // Your base controller
-require_once __DIR__ . '/../Models/Payment.php';
-require_once __DIR__ . '/../Models/Order.php';
-require_once __DIR__ . '/../Services/StripeService.php';
+require_once __DIR__ . '/Controller.php';
+require_once __DIR__ . '/../../Models/Payment.php';
+require_once __DIR__ . '/../../Models/Order.php';
+require_once __DIR__ . '/../../Services/StripeService.php';
 
 class CheckoutController extends Controller
 {
-    private $paymentModel;
-    private $orderModel;
-    private $stripe;
-    private $config;
+    private Payment $paymentModel;
+    private Order $orderModel;
+    private ?StripeService $stripe = null;
+    private array $config;
 
     public function __construct()
     {
         parent::__construct();
         $this->paymentModel = new Payment();
-        $this->orderModel   = new Order();
-        $this->stripe       = new StripeService();
-        $this->config       = require __DIR__ . '/../config.php';
+        $this->orderModel = new Order();
+        $this->config = require __DIR__ . '/../config.php';
 
-        // Ensure user is logged in
-        if (!isset($_SESSION['user_id'])) {
-            header('Location: /login');
-            exit;
+        if ($this->userId() <= 0) {
+            $this->redirect('/login');
         }
     }
 
-    // GET /checkout?order_id=123
-    public function index()
+    public function index(): void
     {
-        $orderId = (int)($_GET['order_id'] ?? 0);
+        $orderId = filter_input(INPUT_GET, 'order_id', FILTER_VALIDATE_INT) ?: 0;
         $order = $this->orderModel->getById($orderId);
 
-        // Security check: Ensure order belongs to logged-in user
-        if (!$order || $order['user_id'] != $_SESSION['user_id']) {
-            die("Invalid order.");
+        if (!$order || (int) $order['user_id'] !== $this->userId()) {
+            http_response_code(404);
+            exit('Order not found.');
         }
 
-        // 1. Create Intent with Stripe
-        $intentData = $this->stripe->createPaymentIntent($orderId, $order['total']);
-
-        if (!$intentData['ok']) {
-            die("Stripe Error: " . $intentData['message']);
+        if ($order['status'] !== 'pending') {
+            http_response_code(409);
+            exit('This order is no longer awaiting payment.');
         }
 
-        // 2. Save Pending Payment in DB
-        $paymentId = $this->paymentModel->createPending(
-            $orderId,
-            $order['total'],
-            $intentData['intent_id'] // Saved in provider_transaction_id
-        );
+        try {
+            $this->stripe = new StripeService($this->config);
+        } catch (RuntimeException $e) {
+            http_response_code(503);
+            exit(htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8'));
+        }
 
-        // 3. Pass data to the View
+        $intent = $this->stripe->createPaymentIntent($orderId, (float) $order['total']);
+        if (!$intent['ok']) {
+            http_response_code(502);
+            exit(htmlspecialchars($intent['message'], ENT_QUOTES, 'UTF-8'));
+        }
+
+        $this->paymentModel->createPending($orderId, (float) $order['total'], $intent['intent_id']);
+        $_SESSION['checkout_csrf'] ??= bin2hex(random_bytes(32));
+
         $this->view('checkout', [
-            'order'             => $order,
-            'client_secret'     => $intentData['client_secret'],
-            'intent_id'         => $intentData['intent_id'],
-            'stripe_pub_key'    => $this->config['stripe_publishable_key']
+            'order' => $order,
+            'client_secret' => $intent['client_secret'],
+            'stripe_pub_key' => $this->config['stripe_publishable_key'],
+            'currency' => strtoupper($this->config['stripe_currency']),
+            'csrf_token' => $_SESSION['checkout_csrf'],
+            'base_path' => rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/'),
         ]);
     }
 
-    // POST /checkout/verify (Called via AJAX from frontend)
-    public function verify()
+    public function verify(): void
     {
-        header('Content-Type: application/json');
-
         $input = json_decode(file_get_contents('php://input'), true);
-        $intentId = $input['payment_intent_id'] ?? '';
-
-        if (!$intentId) {
-            echo json_encode(['ok' => false, 'message' => 'Missing intent ID']);
-            return;
+        if (!is_array($input) || !hash_equals($_SESSION['checkout_csrf'] ?? '', (string) ($input['csrf_token'] ?? ''))) {
+            $this->json(['ok' => false, 'message' => 'Invalid request.'], 403);
         }
 
-        // 1. Ask Stripe if it actually succeeded
-        $verification = $this->stripe->verifyPayment($intentId);
-
-        // 2. Find our DB record
-        $payment = $this->paymentModel->getByTransactionId($intentId);
-
+        $intentId = trim((string) ($input['payment_intent_id'] ?? ''));
+        $payment = $intentId !== '' ? $this->paymentModel->getByTransactionId($intentId) : null;
         if (!$payment) {
-            echo json_encode(['ok' => false, 'message' => 'Payment record not found']);
-            return;
+            $this->json(['ok' => false, 'message' => 'Payment not found.'], 404);
         }
 
-        if ($verification['ok']) {
-            // SUCCESS: Update DB with card last4 and FULL JSON metadata
-            $this->paymentModel->markSucceeded(
-                $payment['id'],
-                $verification['last4'],
-                $verification['raw_data'] // Saved in gateway_metadata
-            );
-
-            // Update Order status to 'paid'
-            $this->orderModel->updateStatus($payment['order_id'], 'paid');
-
-            echo json_encode(['ok' => true, 'message' => 'Payment successful!']);
-        } else {
-            // FAILED
-            $this->paymentModel->markFailed($payment['id']);
-            echo json_encode(['ok' => false, 'message' => 'Payment failed: ' . $verification['status']]);
+        $order = $this->orderModel->getById((int) $payment['order_id']);
+        if (!$order || (int) $order['user_id'] !== $this->userId()) {
+            $this->json(['ok' => false, 'message' => 'Payment not found.'], 404);
         }
+        if ($order['status'] !== 'pending') {
+            $this->json(['ok' => false, 'message' => 'This order is no longer pending.'], 409);
+        }
+        if ($payment['status'] === 'succeeded') {
+            $this->json(['ok' => true, 'message' => 'Payment successful.']);
+        }
+        if ($payment['status'] !== 'pending') {
+            $this->json(['ok' => false, 'message' => 'This payment is no longer pending.'], 409);
+        }
+
+        try {
+            $this->stripe ??= new StripeService($this->config);
+        } catch (RuntimeException $e) {
+            $this->json(['ok' => false, 'message' => 'Payment verification is unavailable.'], 503);
+        }
+
+        $result = $this->stripe->verifyPayment($intentId);
+        $expectedAmount = (int) round((float) $payment['amount'] * 100);
+        $validIntent = ($result['ok'] ?? false)
+            && ($result['amount'] ?? null) === $expectedAmount
+            && ($result['currency'] ?? '') === strtolower($this->config['stripe_currency'])
+            && ($result['order_id'] ?? '') === (string) $payment['order_id'];
+
+        if ($validIntent) {
+            $this->paymentModel->markSucceeded($payment['id'], $result['last4'], $result['raw_data']);
+            $this->orderModel->updateStatus((int) $payment['order_id'], 'paid');
+            $this->json(['ok' => true, 'message' => 'Payment successful.']);
+        }
+
+        if (in_array($result['status'] ?? '', ['canceled', 'requires_payment_method'], true)) {
+            $this->paymentModel->markFailed((int) $payment['id']);
+        }
+        $this->json(['ok' => false, 'message' => 'Payment has not succeeded.'], 402);
+    }
+
+    private function userId(): int
+    {
+        return ($_SESSION['role'] ?? '') === 'user'
+            ? (int) ($_SESSION['id'] ?? $_SESSION['user_id'] ?? 0)
+            : 0;
     }
 }

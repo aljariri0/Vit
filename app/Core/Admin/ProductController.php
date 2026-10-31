@@ -1,6 +1,6 @@
 <?php
 
-require_once __DIR__ . '/../../Models/ProductModel.php';
+require_once __DIR__ . '/../../Models/Product.php';
 
 class ProductController
 {
@@ -10,8 +10,6 @@ class ProductController
     {
         $this->productModel = new ProductModel($pdo);
     }
-
-    // Get all products
     public function index()
     {
         try {
@@ -30,8 +28,6 @@ class ProductController
             return false;
         }
     }
-
-    // Get one product by ID
     public function show($id)
     {
         try {
@@ -55,8 +51,6 @@ class ProductController
             return false;
         }
     }
-
-    // Create product
     public function create(
         $category_id,
         $name,
@@ -100,8 +94,6 @@ class ProductController
             return false;
         }
     }
-
-    // Update product
     public function update(
         $id,
         $name,
@@ -148,8 +140,6 @@ class ProductController
             return false;
         }
     }
-
-    // Delete product
     public function delete($id)
     {
         try {

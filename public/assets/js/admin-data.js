@@ -1,4 +1,4 @@
-/* Fictional fixtures: field names mirror the supplied vitemines SQL. */
+
 const demoDate = '2026-10-29';
 const seed = {
  categories: ['Vitamins','Minerals','Omega & oils','Daily wellness'].map((name,i)=>({id:i+1,name,description:['Everyday vitamin essentials','Essential mineral support','Omega supplements and oils','A balanced daily routine'][i],image:'',is_active:1,created_by_admin_id:1,created_at:demoDate})),
@@ -9,4 +9,4 @@ const seed = {
 };
 let db;
 try { db=JSON.parse(localStorage.getItem('vita-admin-original-v1')) || structuredClone(seed); if(!Object.keys(seed).every(k=>Array.isArray(db[k]))) throw Error(); } catch { db=structuredClone(seed); }
-function persist(){try{localStorage.setItem('vita-admin-original-v1',JSON.stringify(db));}catch{ /* Session-only demo when storage is unavailable. */ }}
+function persist(){try{localStorage.setItem('vita-admin-original-v1',JSON.stringify(db));}catch{}}

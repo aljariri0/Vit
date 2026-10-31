@@ -22,8 +22,6 @@ class Review
 
         return (int) $status === 1;
     }
-
-    // 1. Get all reviews (with user names and product names for admin overview)
     public function getAll(): array
     {
         $sql = "SELECT 
@@ -47,8 +45,6 @@ class Review
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
-
-    // 2. Get reviews by product ID (to show them on the product page)
     public function getByProductId(int $productId): array
     {
         $sql = "SELECT 
@@ -95,8 +91,6 @@ class Review
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
-
-    // 3. Get single review by ID
     public function getById(int $id): ?array
     {
         $sql = "SELECT 
@@ -121,8 +115,6 @@ class Review
 
         return $review ?: null;
     }
-
-    // 4. Create review
     public function create(
         int $productId,
         int $userId,
@@ -152,8 +144,6 @@ class Review
 
         return (int) $this->db->lastInsertId();
     }
-
-    // 5. Update review
     public function update(
         int $id,
         int $starRating,
@@ -177,8 +167,6 @@ class Review
 
         return $stmt->rowCount() > 0;
     }
-
-    // 6. Delete review
     public function delete(int $id): bool
     {
         $sql = "DELETE FROM reviews WHERE id = ?";
