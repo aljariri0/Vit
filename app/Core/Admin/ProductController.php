@@ -1,6 +1,6 @@
 <?php
 
-require_once __DIR__ . '/../../Models/ProductModel.php';
+require_once __DIR__ . '/../../Models/Product.php';
 
 class ProductController
 {

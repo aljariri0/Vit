@@ -2,9 +2,9 @@
 // app/Core/Controllers/CheckoutController.php
 
 require_once __DIR__ . '/Controller.php'; // Your base controller
-require_once __DIR__ . '/../Models/Payment.php';
-require_once __DIR__ . '/../Models/Order.php';
-require_once __DIR__ . '/../Services/StripeService.php';
+require_once __DIR__ . '/../../Models/Payment.php';
+require_once __DIR__ . '/../../Models/Order.php';
+require_once __DIR__ . '/../../Services/StripeService.php';
 
 class CheckoutController extends Controller
 {
