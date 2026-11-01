@@ -1,0 +1,12 @@
+Product: Advanced Multi-Billion Dophilus
+Brand: Solgar
+Category: Probiotics
+Description:
+Solgar dietary supplement featuring Advanced Multi-Billion Dophilus.
+Check the product label for serving instructions and product details.
+Warning:
+Allergy warning: Check the full ingredient list for allergens before use.
+Ask a healthcare professional before use if you have a known allergy, a medical condition, or take medication.
+Images:
+- Probiotics/Solgar-Advanced-Multi-Billion-Dophilus.png
+- Probiotics/Solgar-Advanced-Multi-Billion-Dophilus-Alt.png

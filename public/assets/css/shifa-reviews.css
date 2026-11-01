@@ -1,0 +1,45 @@
+.product-reviews{padding-top:36px;padding-bottom:80px;border-top:1px solid #e5e8e1}
+.review-section-heading{display:flex;justify-content:space-between;align-items:end;margin-bottom:25px}
+.review-section-heading h2{margin:0;color:var(--wellness-forest);font:500 clamp(30px,3.5vw,43px)/1.05 var(--wellness-serif);letter-spacing:-.035em}
+.review-section-heading p:not(.eyebrow){margin:9px 0 0;color:#79847a;font-size:12px}
+.product-review-layout{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(280px,.75fr);gap:32px;align-items:start}
+.product-review-list{display:grid;gap:12px}
+.product-review-card,.product-review-form-card{padding:20px;border:1px solid #e1e6de;border-radius:12px;background:#fff}
+.product-review-meta{display:flex;align-items:center;gap:13px;color:#34483a;font-size:11px}
+.product-review-meta .rating-stars{color:#a87d37;letter-spacing:.04em}
+.product-review-meta time{margin-left:auto;color:#899188;font-size:10px}
+.product-review-card>p{margin:12px 0 0;color:#647168;font-size:13px;line-height:1.7;white-space:pre-line}
+.product-review-form-card h3{margin:0;color:var(--wellness-forest);font:500 23px var(--wellness-serif)}
+.product-review-form-card>p{margin:7px 0 16px;color:#79847a;font-size:11px;line-height:1.5}
+.product-review-form{display:grid;gap:9px}
+.product-review-form label{margin-top:4px;color:#56665a;font-size:10px;font-weight:700}
+.product-review-form select,.product-review-form textarea{width:100%;padding:11px;border:1px solid #dfe4dc;border-radius:7px;background:#fff;color:#25372b;font:inherit;font-size:12px}
+.product-review-form textarea{resize:vertical;min-height:125px;line-height:1.6}
+.product-review-form .button,.product-review-form-card>.button{width:100%;justify-content:center;margin-top:5px}
+.review-status-actions{align-items:flex-start;flex-wrap:wrap}
+.review-status{padding:4px 8px;border-radius:999px;font-size:9px;text-transform:uppercase;letter-spacing:.06em}
+.review-status-pending{background:#f5edd8;color:#80652b}
+.review-status-approved{background:#e7f0e4;color:#476b47}
+.review-status-rejected{background:#f3e5e0;color:#965a4a}
+.image-fallback{display:grid;place-items:center;width:100%;height:100%;min-height:48px;color:#879188;font-size:24px}
+.admin-order-link{color:inherit;text-decoration:underline;text-decoration-color:#cad2c8;text-underline-offset:3px}
+.admin-order-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.admin-order-actions form{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.admin-order-view{display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
+.admin-order-items>h2{margin:0 0 15px;font:500 22px var(--wellness-serif);color:var(--wellness-forest)}
+.admin-order-items .cart-thumb img,.cart-thumb img{width:100%;height:100%;object-fit:contain}
+.quantity-counter{display:inline-flex;align-items:center;min-height:35px;border:1px solid #dfe4dc;border-radius:999px;background:#fff;color:#31483a;overflow:hidden}
+.quantity-counter button{width:34px;height:34px;border:0;background:transparent;color:inherit;font-size:17px;line-height:1}
+.quantity-counter button:disabled{opacity:.35;cursor:not-allowed}
+.quantity-counter input{width:36px!important;min-width:36px!important;height:34px!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;text-align:center;font-size:12px!important;color:inherit}
+.cart-item-actions .quantity-counter{min-height:29px}
+.cart-item-actions .quantity-counter button,.cart-item-actions .quantity-counter input{height:28px!important}
+.site-footer{padding:23px clamp(22px,6vw,86px)!important;gap:18px}
+.site-footer .footer-links{display:flex;align-items:center;gap:22px}
+.admin-site-header{position:relative}
+.admin-site-header .account-link{display:inline}
+.pagination{display:flex;justify-content:center;gap:7px;margin:30px auto 0}
+.pagination a{display:grid;place-items:center;width:36px;height:36px;border:1px solid #dfe4dc;border-radius:50%;font-size:11px;color:#526251}
+.pagination a.active{background:#14271c;border-color:#14271c;color:#fff}
+.pagination a:hover{border-color:#829775}
+@media(max-width:760px){.product-review-layout{grid-template-columns:1fr;gap:17px}.product-review-meta{flex-wrap:wrap}.product-review-meta time{margin-left:auto}.product-reviews{padding-top:25px}}

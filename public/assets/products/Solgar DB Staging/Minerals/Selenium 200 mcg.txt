@@ -1,0 +1,12 @@
+Product: Selenium 200 mcg
+Brand: Solgar
+Category: Minerals
+Description:
+Solgar dietary supplement featuring Selenium 200 mcg.
+Check the product label for serving instructions and product details.
+Warning:
+Allergy warning: Check the full ingredient list for allergens before use.
+Ask a healthcare professional before use if you have a known allergy, a medical condition, or take medication.
+Images:
+- Minerals/Solgar-Selenium-200mcg.png
+- Minerals/Solgar-Selenium-200mcg-Official.png

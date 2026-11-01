@@ -1,0 +1,11 @@
+Product: Vitamin C 1000 mg
+Brand: Solgar
+Category: Vitamins
+Description:
+Solgar dietary supplement featuring Vitamin C 1000 mg.
+Check the product label for serving instructions and product details.
+Warning:
+Allergy warning: Check the full ingredient list for allergens before use.
+Ask a healthcare professional before use if you have a known allergy, a medical condition, or take medication.
+Images:
+- Vitamins/Solgar-Vitamin-C-1000mg.png

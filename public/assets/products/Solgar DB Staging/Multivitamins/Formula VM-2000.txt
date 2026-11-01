@@ -1,0 +1,11 @@
+Product: Formula VM-2000
+Brand: Solgar
+Category: Multivitamins
+Description:
+Solgar dietary supplement featuring Formula VM-2000.
+Check the product label for serving instructions and product details.
+Warning:
+Allergy warning: Check the full ingredient list for allergens before use.
+Ask a healthcare professional before use if you have a known allergy, a medical condition, or take medication.
+Images:
+- Multivitamins/Solgar-VM-2000.png

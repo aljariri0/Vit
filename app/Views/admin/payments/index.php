@@ -1,0 +1,19 @@
+<?php $escape = static fn ($value) => htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8'); ?>
+<section class="section-wrap dashboard-page admin-page">
+    <div class="dashboard-heading"><div><p class="eyebrow">THE DETAILS, TAKEN CARE OF</p><h1>Payments<span class="brand-dot">.</span></h1><p>Secure checkout activity across Shifa.</p></div></div>
+    <div class="data-card">
+        <div class="table-head payments-admin-head"><span>Payment</span><span>Order</span><span>Customer</span><span>Method</span><span>Amount</span><span>Status</span><span>Date</span></div>
+        <?php foreach ($payments as $payment): ?>
+            <div class="table-row payments-admin-head">
+                <b>#<?= $escape($payment['id']) ?></b>
+                <span>#<?= $escape($payment['order_id']) ?></span>
+                <span><?= $escape($payment['user_id']) ?></span>
+                <span><?= $escape($payment['method'] === 'cash_on_delivery' ? 'Cash on delivery' : ucfirst($payment['method'])) ?></span>
+                <b><?= $escape(number_format((float) $payment['amount'], 2)) ?> USD</b>
+                <span><i class="status-pill status-<?= $escape($payment['status']) ?>"><?= $escape(ucfirst($payment['status'])) ?></i></span>
+                <span><?= $escape(date('M j, Y', strtotime($payment['created_at']))) ?></span>
+            </div>
+        <?php endforeach; ?>
+        <?php if (!$payments): ?><p class="empty-inline">No payments to show yet.</p><?php endif; ?>
+    </div>
+</section>
